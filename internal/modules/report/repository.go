@@ -2,6 +2,8 @@ package report
 
 import (
 	"context"
+	"strconv"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -162,4 +164,152 @@ WHERE l.organization_id = $1
 		TotalActualHours:   totalActualHours,
 		Items:              items,
 	}, nil
+}
+
+func (r *Repository) GetPaymentsReport(
+	ctx context.Context,
+	organizationID uuid.UUID,
+	fromDate string,
+	toDate string,
+	branchID string,
+	groupID string,
+	studentID string,
+	status string,
+) (PaymentsReport, error) {
+	whereParts := []string{
+		"p.organization_id = $1",
+		"p.payment_date >= $2::date",
+		"p.payment_date <= $3::date",
+	}
+
+	args := []interface{}{organizationID, fromDate, toDate}
+	argIndex := 4
+
+	if branchID != "" {
+		whereParts = append(whereParts, "p.branch_id = $"+itoa(argIndex))
+		args = append(args, branchID)
+		argIndex++
+	}
+
+	if groupID != "" {
+		whereParts = append(whereParts, "p.group_id = $"+itoa(argIndex)+"::uuid")
+		args = append(args, groupID)
+		argIndex++
+	}
+
+	if studentID != "" {
+		whereParts = append(whereParts, "p.student_id = $"+itoa(argIndex)+"::uuid")
+		args = append(args, studentID)
+		argIndex++
+	}
+
+	if status != "" {
+		whereParts = append(whereParts, "p.status = $"+itoa(argIndex))
+		args = append(args, status)
+		argIndex++
+	}
+
+	whereSQL := strings.Join(whereParts, " AND ")
+
+	query := `
+SELECT
+p.id::text,
+p.payment_date::text,
+COALESCE(p.payment_period::text, ''),
+s.id::text,
+s.full_name,
+COALESCE(g.id::text, ''),
+COALESCE(g.name, ''),
+b.id::text,
+b.name,
+p.amount::text,
+COALESCE(p.payment_method, ''),
+p.status,
+COALESCE(p.comment, '')
+FROM payments p
+JOIN students s ON s.id = p.student_id
+JOIN branches b ON b.id = p.branch_id
+LEFT JOIN groups g ON g.id = p.group_id
+WHERE ` + whereSQL + `
+ORDER BY p.payment_date ASC, p.created_at ASC
+`
+
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		return PaymentsReport{}, err
+	}
+	defer rows.Close()
+
+	items := make([]PaymentReportItem, 0)
+
+	for rows.Next() {
+		var item PaymentReportItem
+
+		if err := rows.Scan(
+			&item.PaymentID,
+			&item.PaymentDate,
+			&item.PaymentPeriod,
+			&item.StudentID,
+			&item.StudentName,
+			&item.GroupID,
+			&item.GroupName,
+			&item.BranchID,
+			&item.BranchName,
+			&item.Amount,
+			&item.PaymentMethod,
+			&item.Status,
+			&item.Comment,
+		); err != nil {
+			return PaymentsReport{}, err
+		}
+
+		items = append(items, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return PaymentsReport{}, err
+	}
+
+	totalAmount := "0"
+	paidAmount := "0"
+	pendingAmount := "0"
+	refundedAmount := "0"
+	cancelledAmount := "0"
+
+	summaryQuery := `
+SELECT
+COALESCE(SUM(p.amount), 0)::text AS total_amount,
+COALESCE(SUM(p.amount) FILTER (WHERE p.status = 'paid'), 0)::text AS paid_amount,
+COALESCE(SUM(p.amount) FILTER (WHERE p.status = 'pending'), 0)::text AS pending_amount,
+COALESCE(SUM(p.amount) FILTER (WHERE p.status = 'refunded'), 0)::text AS refunded_amount,
+COALESCE(SUM(p.amount) FILTER (WHERE p.status = 'cancelled'), 0)::text AS cancelled_amount
+FROM payments p
+WHERE ` + whereSQL
+
+	err = r.db.QueryRow(ctx, summaryQuery, args...).Scan(
+		&totalAmount,
+		&paidAmount,
+		&pendingAmount,
+		&refundedAmount,
+		&cancelledAmount,
+	)
+	if err != nil {
+		return PaymentsReport{}, err
+	}
+
+	return PaymentsReport{
+		FromDate:        fromDate,
+		ToDate:          toDate,
+		TotalPayments:   len(items),
+		TotalAmount:     totalAmount,
+		PaidAmount:      paidAmount,
+		PendingAmount:   pendingAmount,
+		RefundedAmount:  refundedAmount,
+		CancelledAmount: cancelledAmount,
+		Items:           items,
+	}, nil
+}
+
+func itoa(value int) string {
+	return strconv.Itoa(value)
 }

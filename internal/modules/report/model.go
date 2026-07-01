@@ -35,3 +35,31 @@ type TeacherScheduleItem struct {
 	TeacherRoleInLesson string
 	SubstitutionReason  string
 }
+
+type PaymentsReport struct {
+	FromDate        string
+	ToDate          string
+	TotalPayments   int
+	TotalAmount     string
+	PaidAmount      string
+	PendingAmount   string
+	RefundedAmount  string
+	CancelledAmount string
+	Items           []PaymentReportItem
+}
+
+type PaymentReportItem struct {
+	PaymentID     string
+	PaymentDate   string
+	PaymentPeriod string
+	StudentID     string
+	StudentName   string
+	GroupID       string
+	GroupName     string
+	BranchID      string
+	BranchName    string
+	Amount        string
+	PaymentMethod string
+	Status        string
+	Comment       string
+}

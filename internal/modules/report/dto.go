@@ -35,3 +35,31 @@ type TeacherScheduleReportItem struct {
 	TeacherRoleInLesson string `json:"teacher_role_in_lesson"`
 	SubstitutionReason  string `json:"substitution_reason,omitempty"`
 }
+
+type PaymentsReportResponse struct {
+	FromDate        string               `json:"from_date"`
+	ToDate          string               `json:"to_date"`
+	TotalPayments   int                  `json:"total_payments"`
+	TotalAmount     string               `json:"total_amount"`
+	PaidAmount      string               `json:"paid_amount"`
+	PendingAmount   string               `json:"pending_amount"`
+	RefundedAmount  string               `json:"refunded_amount"`
+	CancelledAmount string               `json:"cancelled_amount"`
+	Items           []PaymentsReportItem `json:"items"`
+}
+
+type PaymentsReportItem struct {
+	PaymentID     string `json:"payment_id"`
+	PaymentDate   string `json:"payment_date"`
+	PaymentPeriod string `json:"payment_period,omitempty"`
+	StudentID     string `json:"student_id"`
+	StudentName   string `json:"student_name"`
+	GroupID       string `json:"group_id,omitempty"`
+	GroupName     string `json:"group_name,omitempty"`
+	BranchID      string `json:"branch_id"`
+	BranchName    string `json:"branch_name"`
+	Amount        string `json:"amount"`
+	PaymentMethod string `json:"payment_method,omitempty"`
+	Status        string `json:"status"`
+	Comment       string `json:"comment,omitempty"`
+}

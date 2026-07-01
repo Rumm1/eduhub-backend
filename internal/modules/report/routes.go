@@ -7,4 +7,5 @@ import (
 
 func RegisterRoutes(r chi.Router, handler *Handler) {
 	r.With(middleware.RequirePermission("reports.teacher_schedule.read")).Get("/teacher-schedule", handler.GetTeacherSchedule)
+	r.With(middleware.RequirePermission("reports.payments.read")).Get("/payments", handler.GetPaymentsReport)
 }
