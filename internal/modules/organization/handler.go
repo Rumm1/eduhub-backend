@@ -28,7 +28,9 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrOrganizationNameRequired):
-			response.Error(w, http.StatusBadRequest, "ORGANIZATION_NAME_REQUIRED", "Organization name is required")
+			response.Error(w, http.StatusBadRequest, "ORGANIZATION_NAME_REQUIRED", "At least one organization name is required")
+		case errors.Is(err, ErrOrganizationLanguageInvalid):
+			response.Error(w, http.StatusBadRequest, "ORGANIZATION_LANGUAGE_INVALID", "Default language must be ru, kk, or en")
 		case errors.Is(err, ErrAdminEmailRequired):
 			response.Error(w, http.StatusBadRequest, "ADMIN_EMAIL_REQUIRED", "Admin email is required")
 		case errors.Is(err, ErrAdminPasswordRequired):

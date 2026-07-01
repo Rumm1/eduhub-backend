@@ -3,12 +3,16 @@ package organization
 import "github.com/google/uuid"
 
 type Organization struct {
-	ID     uuid.UUID
-	Name   string
-	BIN    string
-	Phone  string
-	Email  string
-	Status string
+	ID              uuid.UUID
+	Name            string
+	NameRU          string
+	NameKK          string
+	NameEN          string
+	DefaultLanguage string
+	BIN             string
+	Phone           string
+	Email           string
+	Status          string
 }
 
 type User struct {

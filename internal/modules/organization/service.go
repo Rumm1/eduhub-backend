@@ -10,10 +10,11 @@ import (
 )
 
 var (
-	ErrOrganizationNameRequired = errors.New("organization name is required")
-	ErrAdminEmailRequired       = errors.New("admin email is required")
-	ErrAdminPasswordRequired    = errors.New("admin password is required")
-	ErrAdminFullNameRequired    = errors.New("admin full name is required")
+	ErrOrganizationNameRequired    = errors.New("organization name is required")
+	ErrOrganizationLanguageInvalid = errors.New("organization language is invalid")
+	ErrAdminEmailRequired          = errors.New("admin email is required")
+	ErrAdminPasswordRequired       = errors.New("admin password is required")
+	ErrAdminFullNameRequired       = errors.New("admin full name is required")
 )
 
 type Service struct {
@@ -25,14 +26,36 @@ func NewService(repo *Repository) *Service {
 }
 
 func (s *Service) CreateOrganization(ctx context.Context, req CreateOrganizationRequest) (CreateOrganizationResponse, error) {
-	orgName := strings.TrimSpace(req.Name)
+	defaultLanguage := normalizeLanguage(req.DefaultLanguage)
+	if !isValidLanguage(defaultLanguage) {
+		return CreateOrganizationResponse{}, ErrOrganizationLanguageInvalid
+	}
+
+	nameRU := strings.TrimSpace(req.NameRU)
+	nameKK := strings.TrimSpace(req.NameKK)
+	nameEN := strings.TrimSpace(req.NameEN)
+
+	oldName := strings.TrimSpace(req.Name)
+	if nameRU == "" && nameKK == "" && nameEN == "" && oldName != "" {
+		switch defaultLanguage {
+		case "kk":
+			nameKK = oldName
+		case "en":
+			nameEN = oldName
+		default:
+			nameRU = oldName
+		}
+	}
+
+	if nameRU == "" && nameKK == "" && nameEN == "" {
+		return CreateOrganizationResponse{}, ErrOrganizationNameRequired
+	}
+
+	orgName := chooseOrganizationName(defaultLanguage, nameRU, nameKK, nameEN)
+
 	adminEmail := strings.ToLower(strings.TrimSpace(req.AdminEmail))
 	adminPassword := strings.TrimSpace(req.AdminPassword)
 	adminFullName := strings.TrimSpace(req.AdminFullName)
-
-	if orgName == "" {
-		return CreateOrganizationResponse{}, ErrOrganizationNameRequired
-	}
 
 	if adminEmail == "" {
 		return CreateOrganizationResponse{}, ErrAdminEmailRequired
@@ -53,6 +76,10 @@ func (s *Service) CreateOrganization(ctx context.Context, req CreateOrganization
 
 	org := NewOrganization(
 		orgName,
+		nameRU,
+		nameKK,
+		nameEN,
+		defaultLanguage,
 		strings.TrimSpace(req.BIN),
 		strings.TrimSpace(req.Phone),
 		strings.ToLower(strings.TrimSpace(req.Email)),
@@ -90,12 +117,16 @@ func (s *Service) CreateOrganization(ctx context.Context, req CreateOrganization
 
 	return CreateOrganizationResponse{
 		Organization: OrganizationResponse{
-			ID:     createdOrg.ID.String(),
-			Name:   createdOrg.Name,
-			BIN:    createdOrg.BIN,
-			Phone:  createdOrg.Phone,
-			Email:  createdOrg.Email,
-			Status: createdOrg.Status,
+			ID:              createdOrg.ID.String(),
+			Name:            createdOrg.Name,
+			NameRU:          createdOrg.NameRU,
+			NameKK:          createdOrg.NameKK,
+			NameEN:          createdOrg.NameEN,
+			DefaultLanguage: createdOrg.DefaultLanguage,
+			BIN:             createdOrg.BIN,
+			Phone:           createdOrg.Phone,
+			Email:           createdOrg.Email,
+			Status:          createdOrg.Status,
 		},
 		Admin: AdminResponse{
 			ID:       createdAdmin.ID.String(),
@@ -105,6 +136,46 @@ func (s *Service) CreateOrganization(ctx context.Context, req CreateOrganization
 			Roles:    []string{"ORG_ADMIN"},
 		},
 	}, nil
+}
+
+func normalizeLanguage(language string) string {
+	language = strings.ToLower(strings.TrimSpace(language))
+	if language == "" {
+		return "ru"
+	}
+
+	return language
+}
+
+func isValidLanguage(language string) bool {
+	return language == "ru" || language == "kk" || language == "en"
+}
+
+func chooseOrganizationName(defaultLanguage string, nameRU string, nameKK string, nameEN string) string {
+	switch defaultLanguage {
+	case "kk":
+		if nameKK != "" {
+			return nameKK
+		}
+	case "en":
+		if nameEN != "" {
+			return nameEN
+		}
+	default:
+		if nameRU != "" {
+			return nameRU
+		}
+	}
+
+	if nameRU != "" {
+		return nameRU
+	}
+
+	if nameKK != "" {
+		return nameKK
+	}
+
+	return nameEN
 }
 
 func orgAdminPermissions() []string {

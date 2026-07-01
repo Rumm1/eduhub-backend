@@ -34,13 +34,28 @@ func (r *Repository) CreateOrganizationWithAdmin(
 INSERT INTO organizations (
 id,
 name,
+name_ru,
+name_kk,
+name_en,
+default_language,
 bin,
 phone,
 email,
 status
 )
-VALUES ($1, $2, $3, $4, $5, $6)
-`, org.ID, org.Name, org.BIN, org.Phone, org.Email, org.Status)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+`,
+		org.ID,
+		org.Name,
+		org.NameRU,
+		org.NameKK,
+		org.NameEN,
+		org.DefaultLanguage,
+		org.BIN,
+		org.Phone,
+		org.Email,
+		org.Status,
+	)
 	if err != nil {
 		return Organization{}, User{}, err
 	}
@@ -104,13 +119,26 @@ ON CONFLICT DO NOTHING
 	return org, admin, nil
 }
 
-func NewOrganization(name string, bin string, phone string, email string) Organization {
+func NewOrganization(
+	name string,
+	nameRU string,
+	nameKK string,
+	nameEN string,
+	defaultLanguage string,
+	bin string,
+	phone string,
+	email string,
+) Organization {
 	return Organization{
-		ID:     uuid.New(),
-		Name:   name,
-		BIN:    bin,
-		Phone:  phone,
-		Email:  email,
-		Status: "active",
+		ID:              uuid.New(),
+		Name:            name,
+		NameRU:          nameRU,
+		NameKK:          nameKK,
+		NameEN:          nameEN,
+		DefaultLanguage: defaultLanguage,
+		BIN:             bin,
+		Phone:           phone,
+		Email:           email,
+		Status:          "active",
 	}
 }
