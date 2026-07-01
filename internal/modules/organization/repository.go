@@ -2,45 +2,115 @@ package organization
 
 import (
 	"context"
-	"errors"
-	"time"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var ErrNotFound = errors.New("entity not found")
-
-type Repository struct{}
-
-func NewRepository() *Repository {
-	return &Repository{}
+type Repository struct {
+	db *pgxpool.Pool
 }
 
-func (r *Repository) List(ctx context.Context) ([]Entity, error) {
-	return []Entity{}, nil
+func NewRepository(db *pgxpool.Pool) *Repository {
+	return &Repository{db: db}
 }
 
-func (r *Repository) Get(ctx context.Context, id string) (Entity, error) {
-	if id == "" {
-		return Entity{}, ErrNotFound
+func (r *Repository) CreateOrganizationWithAdmin(
+	ctx context.Context,
+	org Organization,
+	admin User,
+	role Role,
+	permissionCodes []string,
+) (Organization, User, error) {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return Organization{}, User{}, err
 	}
-	return Entity{ID: id, CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
-}
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
-func (r *Repository) Create(ctx context.Context, request CreateRequest) (Entity, error) {
-	now := time.Now()
-	return Entity{ID: now.Format("20060102150405.000000000"), Name: request.Name, CreatedAt: now, UpdatedAt: now}, nil
-}
-
-func (r *Repository) Update(ctx context.Context, id string, request UpdateRequest) (Entity, error) {
-	if id == "" {
-		return Entity{}, ErrNotFound
+	_, err = tx.Exec(ctx, `
+INSERT INTO organizations (
+id,
+name,
+bin,
+phone,
+email,
+status
+)
+VALUES ($1, $2, $3, $4, $5, $6)
+`, org.ID, org.Name, org.BIN, org.Phone, org.Email, org.Status)
+	if err != nil {
+		return Organization{}, User{}, err
 	}
-	now := time.Now()
-	return Entity{ID: id, Name: request.Name, CreatedAt: now, UpdatedAt: now}, nil
+
+	_, err = tx.Exec(ctx, `
+INSERT INTO users (
+id,
+organization_id,
+email,
+password_hash,
+full_name,
+phone,
+status
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+`, admin.ID, admin.OrganizationID, admin.Email, admin.PasswordHash, admin.FullName, admin.Phone, admin.Status)
+	if err != nil {
+		return Organization{}, User{}, err
+	}
+
+	_, err = tx.Exec(ctx, `
+INSERT INTO roles (
+id,
+organization_id,
+name,
+code,
+description,
+is_system
+)
+VALUES ($1, $2, $3, $4, $5, $6)
+`, role.ID, role.OrganizationID, role.Name, role.Code, role.Description, role.IsSystem)
+	if err != nil {
+		return Organization{}, User{}, err
+	}
+
+	_, err = tx.Exec(ctx, `
+INSERT INTO user_roles (user_id, role_id)
+VALUES ($1, $2)
+`, admin.ID, role.ID)
+	if err != nil {
+		return Organization{}, User{}, err
+	}
+
+	for _, code := range permissionCodes {
+		_, err = tx.Exec(ctx, `
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT $1, id
+FROM permissions
+WHERE code = $2
+ON CONFLICT DO NOTHING
+`, role.ID, code)
+		if err != nil {
+			return Organization{}, User{}, err
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return Organization{}, User{}, err
+	}
+
+	return org, admin, nil
 }
 
-func (r *Repository) Delete(ctx context.Context, id string) error {
-	if id == "" {
-		return ErrNotFound
+func NewOrganization(name string, bin string, phone string, email string) Organization {
+	return Organization{
+		ID:     uuid.New(),
+		Name:   name,
+		BIN:    bin,
+		Phone:  phone,
+		Email:  email,
+		Status: "active",
 	}
-	return nil
 }

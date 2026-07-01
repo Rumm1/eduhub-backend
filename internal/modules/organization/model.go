@@ -1,10 +1,31 @@
 package organization
 
-import "time"
+import "github.com/google/uuid"
 
-type Entity struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+type Organization struct {
+	ID     uuid.UUID
+	Name   string
+	BIN    string
+	Phone  string
+	Email  string
+	Status string
+}
+
+type User struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	Email          string
+	PasswordHash   string
+	FullName       string
+	Phone          string
+	Status         string
+}
+
+type Role struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	Name           string
+	Code           string
+	Description    string
+	IsSystem       bool
 }

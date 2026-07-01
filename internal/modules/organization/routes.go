@@ -1,16 +1,7 @@
 package organization
 
-import "net/http"
+import "github.com/go-chi/chi/v5"
 
-func RegisterRoutes(mux *http.ServeMux, basePath string, handler *Handler) {
-	if mux == nil {
-		return
-	}
-	if basePath == "" {
-		basePath = "/organization"
-	}
-	if handler == nil {
-		handler = NewHandler(nil)
-	}
-	mux.HandleFunc("GET "+basePath, handler.List)
+func RegisterPlatformRoutes(r chi.Router, handler *Handler) {
+	r.Post("/organizations", handler.Create)
 }
