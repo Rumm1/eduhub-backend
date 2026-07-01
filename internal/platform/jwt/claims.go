@@ -1,17 +1,17 @@
 package jwt
 
-import "time"
+import (
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
+)
 
 type Claims struct {
-	Subject        string   `json:"sub"`
-	Role           string   `json:"role,omitempty"`
-	OrganizationID string   `json:"organization_id,omitempty"`
-	BranchID       string   `json:"branch_id,omitempty"`
-	Permissions    []string `json:"permissions,omitempty"`
-	IssuedAt       int64    `json:"iat"`
-	ExpiresAt      int64    `json:"exp"`
-}
+	UserID         uuid.UUID   `json:"user_id"`
+	OrganizationID *uuid.UUID  `json:"organization_id,omitempty"`
+	Roles          []string    `json:"roles"`
+	Permissions    []string    `json:"permissions"`
+	BranchIDs      []uuid.UUID `json:"branch_ids"`
+	TokenType      string      `json:"token_type"`
 
-func (c Claims) Valid(now time.Time) bool {
-	return c.Subject != "" && c.ExpiresAt > now.Unix()
+	jwt.RegisteredClaims
 }

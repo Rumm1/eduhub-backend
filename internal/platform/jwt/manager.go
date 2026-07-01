@@ -1,85 +1,81 @@
 package jwt
 
 import (
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/base64"
-	"encoding/json"
-	"errors"
-	"strings"
+	"fmt"
 	"time"
+
+	gojwt "github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
+const AccessTokenType = "access"
+
 type Manager struct {
-	secret []byte
-	ttl    time.Duration
+	accessSecret string
+	accessTTL    time.Duration
 }
 
-func NewManager(secret string, ttl time.Duration) (*Manager, error) {
-	if secret == "" {
-		return nil, errors.New("jwt secret is empty")
-	}
-	if ttl <= 0 {
-		ttl = 15 * time.Minute
-	}
-	return &Manager{secret: []byte(secret), ttl: ttl}, nil
+type AccessTokenPayload struct {
+	UserID         uuid.UUID
+	OrganizationID *uuid.UUID
+	Roles          []string
+	Permissions    []string
+	BranchIDs      []uuid.UUID
 }
 
-func (m *Manager) Generate(claims Claims) (string, error) {
+func NewManager(accessSecret string, accessTTLMinutes int) *Manager {
+	if accessTTLMinutes <= 0 {
+		accessTTLMinutes = 15
+	}
+
+	return &Manager{
+		accessSecret: accessSecret,
+		accessTTL:    time.Duration(accessTTLMinutes) * time.Minute,
+	}
+}
+
+func (m *Manager) GenerateAccessToken(payload AccessTokenPayload) (string, error) {
 	now := time.Now()
-	if claims.IssuedAt == 0 {
-		claims.IssuedAt = now.Unix()
-	}
-	if claims.ExpiresAt == 0 {
-		claims.ExpiresAt = now.Add(m.ttl).Unix()
+
+	claims := Claims{
+		UserID:         payload.UserID,
+		OrganizationID: payload.OrganizationID,
+		Roles:          payload.Roles,
+		Permissions:    payload.Permissions,
+		BranchIDs:      payload.BranchIDs,
+		TokenType:      AccessTokenType,
+		RegisteredClaims: gojwt.RegisteredClaims{
+			ExpiresAt: gojwt.NewNumericDate(now.Add(m.accessTTL)),
+			IssuedAt:  gojwt.NewNumericDate(now),
+			Subject:   payload.UserID.String(),
+		},
 	}
 
-	header := map[string]string{"alg": "HS256", "typ": "JWT"}
-	headerBytes, err := json.Marshal(header)
-	if err != nil {
-		return "", err
-	}
-	claimsBytes, err := json.Marshal(claims)
-	if err != nil {
-		return "", err
-	}
+	token := gojwt.NewWithClaims(gojwt.SigningMethodHS256, claims)
 
-	unsigned := encode(headerBytes) + "." + encode(claimsBytes)
-	return unsigned + "." + m.sign(unsigned), nil
+	return token.SignedString([]byte(m.accessSecret))
 }
 
-func (m *Manager) Parse(token string) (Claims, error) {
-	parts := strings.Split(token, ".")
-	if len(parts) != 3 {
-		return Claims{}, errors.New("invalid token format")
-	}
+func (m *Manager) ParseAccessToken(tokenString string) (*Claims, error) {
+	token, err := gojwt.ParseWithClaims(tokenString, &Claims{}, func(token *gojwt.Token) (interface{}, error) {
+		if token.Method != gojwt.SigningMethodHS256 {
+			return nil, fmt.Errorf("unexpected signing method")
+		}
 
-	unsigned := parts[0] + "." + parts[1]
-	if !hmac.Equal([]byte(parts[2]), []byte(m.sign(unsigned))) {
-		return Claims{}, errors.New("invalid token signature")
-	}
-
-	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+		return []byte(m.accessSecret), nil
+	})
 	if err != nil {
-		return Claims{}, err
+		return nil, err
 	}
 
-	var claims Claims
-	if err := json.Unmarshal(payload, &claims); err != nil {
-		return Claims{}, err
+	claims, ok := token.Claims.(*Claims)
+	if !ok || !token.Valid {
+		return nil, fmt.Errorf("invalid token")
 	}
-	if !claims.Valid(time.Now()) {
-		return Claims{}, errors.New("token is expired or invalid")
+
+	if claims.TokenType != AccessTokenType {
+		return nil, fmt.Errorf("invalid token type")
 	}
+
 	return claims, nil
-}
-
-func (m *Manager) sign(unsigned string) string {
-	hash := hmac.New(sha256.New, m.secret)
-	_, _ = hash.Write([]byte(unsigned))
-	return encode(hash.Sum(nil))
-}
-
-func encode(value []byte) string {
-	return base64.RawURLEncoding.EncodeToString(value)
 }
