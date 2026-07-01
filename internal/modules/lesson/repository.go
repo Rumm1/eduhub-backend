@@ -2,45 +2,152 @@ package lesson
 
 import (
 	"context"
-	"errors"
-	"time"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var ErrNotFound = errors.New("entity not found")
-
-type Repository struct{}
-
-func NewRepository() *Repository {
-	return &Repository{}
+type Repository struct {
+	db *pgxpool.Pool
 }
 
-func (r *Repository) List(ctx context.Context) ([]Entity, error) {
-	return []Entity{}, nil
+func NewRepository(db *pgxpool.Pool) *Repository {
+	return &Repository{db: db}
 }
 
-func (r *Repository) Get(ctx context.Context, id string) (Entity, error) {
-	if id == "" {
-		return Entity{}, ErrNotFound
+func (r *Repository) Create(ctx context.Context, lesson Lesson) (Lesson, error) {
+	err := r.db.QueryRow(ctx, `
+SELECT
+branch_id,
+subject_id,
+COALESCE(teacher_id::text, '')
+FROM groups
+WHERE id = $1
+  AND organization_id = $2
+  AND status = 'active'
+`, lesson.GroupID, lesson.OrganizationID).Scan(
+		&lesson.BranchID,
+		&lesson.SubjectID,
+		&lesson.TeacherID,
+	)
+	if err != nil {
+		return Lesson{}, ErrGroupNotFound
 	}
-	return Entity{ID: id, CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
-}
 
-func (r *Repository) Create(ctx context.Context, request CreateRequest) (Entity, error) {
-	now := time.Now()
-	return Entity{ID: now.Format("20060102150405.000000000"), Name: request.Name, CreatedAt: now, UpdatedAt: now}, nil
-}
-
-func (r *Repository) Update(ctx context.Context, id string, request UpdateRequest) (Entity, error) {
-	if id == "" {
-		return Entity{}, ErrNotFound
+	var teacherID interface{}
+	if lesson.TeacherID != "" {
+		teacherID = lesson.TeacherID
 	}
-	now := time.Now()
-	return Entity{ID: id, Name: request.Name, CreatedAt: now, UpdatedAt: now}, nil
+
+	err = r.db.QueryRow(ctx, `
+INSERT INTO lessons (
+id,
+organization_id,
+branch_id,
+group_id,
+teacher_id,
+subject_id,
+lesson_date,
+start_time,
+end_time,
+topic,
+status
+)
+VALUES ($1, $2, $3, $4, $5::uuid, $6, $7::date, $8::time, $9::time, $10, $11)
+RETURNING
+id,
+organization_id,
+branch_id,
+group_id,
+COALESCE(teacher_id::text, ''),
+subject_id,
+lesson_date::text,
+start_time::text,
+end_time::text,
+COALESCE(topic, ''),
+status
+`,
+		lesson.ID,
+		lesson.OrganizationID,
+		lesson.BranchID,
+		lesson.GroupID,
+		teacherID,
+		lesson.SubjectID,
+		lesson.LessonDate,
+		lesson.StartTime,
+		lesson.EndTime,
+		lesson.Topic,
+		lesson.Status,
+	).Scan(
+		&lesson.ID,
+		&lesson.OrganizationID,
+		&lesson.BranchID,
+		&lesson.GroupID,
+		&lesson.TeacherID,
+		&lesson.SubjectID,
+		&lesson.LessonDate,
+		&lesson.StartTime,
+		&lesson.EndTime,
+		&lesson.Topic,
+		&lesson.Status,
+	)
+	if err != nil {
+		return Lesson{}, err
+	}
+
+	return lesson, nil
 }
 
-func (r *Repository) Delete(ctx context.Context, id string) error {
-	if id == "" {
-		return ErrNotFound
+func (r *Repository) ListByOrganizationID(ctx context.Context, organizationID uuid.UUID) ([]Lesson, error) {
+	rows, err := r.db.Query(ctx, `
+SELECT
+id,
+organization_id,
+branch_id,
+group_id,
+COALESCE(teacher_id::text, ''),
+subject_id,
+lesson_date::text,
+start_time::text,
+end_time::text,
+COALESCE(topic, ''),
+status
+FROM lessons
+WHERE organization_id = $1
+ORDER BY lesson_date DESC, start_time DESC
+`, organizationID)
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	defer rows.Close()
+
+	lessons := make([]Lesson, 0)
+
+	for rows.Next() {
+		var item Lesson
+
+		if err := rows.Scan(
+			&item.ID,
+			&item.OrganizationID,
+			&item.BranchID,
+			&item.GroupID,
+			&item.TeacherID,
+			&item.SubjectID,
+			&item.LessonDate,
+			&item.StartTime,
+			&item.EndTime,
+			&item.Topic,
+			&item.Status,
+		); err != nil {
+			return nil, err
+		}
+
+		lessons = append(lessons, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return lessons, nil
 }
