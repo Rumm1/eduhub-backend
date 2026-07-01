@@ -1,24 +1,67 @@
-package usercontext
+package context
 
-import "context"
+import (
+	stdcontext "context"
+
+	"github.com/google/uuid"
+)
 
 type contextKey string
 
-const userKey contextKey = "user"
+const userContextKey contextKey = "user_context"
 
-type User struct {
-	ID             string   `json:"id"`
-	Role           string   `json:"role,omitempty"`
-	OrganizationID string   `json:"organization_id,omitempty"`
-	BranchID       string   `json:"branch_id,omitempty"`
-	Permissions    []string `json:"permissions,omitempty"`
+type UserContext struct {
+	UserID         uuid.UUID
+	OrganizationID *uuid.UUID
+	Roles          []string
+	Permissions    []string
+	BranchIDs      []uuid.UUID
 }
 
-func WithUser(ctx context.Context, user User) context.Context {
-	return context.WithValue(ctx, userKey, user)
+func WithUser(ctx stdcontext.Context, user UserContext) stdcontext.Context {
+	return stdcontext.WithValue(ctx, userContextKey, user)
 }
 
-func UserFromContext(ctx context.Context) (User, bool) {
-	user, ok := ctx.Value(userKey).(User)
+func GetUser(ctx stdcontext.Context) (UserContext, bool) {
+	user, ok := ctx.Value(userContextKey).(UserContext)
 	return user, ok
+}
+
+func MustGetUser(ctx stdcontext.Context) UserContext {
+	user, ok := GetUser(ctx)
+	if !ok {
+		panic("user context not found")
+	}
+
+	return user
+}
+
+func HasPermission(ctx stdcontext.Context, permission string) bool {
+	user, ok := GetUser(ctx)
+	if !ok {
+		return false
+	}
+
+	for _, item := range user.Permissions {
+		if item == permission {
+			return true
+		}
+	}
+
+	return false
+}
+
+func HasRole(ctx stdcontext.Context, role string) bool {
+	user, ok := GetUser(ctx)
+	if !ok {
+		return false
+	}
+
+	for _, item := range user.Roles {
+		if item == role {
+			return true
+		}
+	}
+
+	return false
 }

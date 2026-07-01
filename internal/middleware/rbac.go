@@ -7,41 +7,40 @@ import (
 	"github.com/Rumm1/eduhub-backend/internal/shared/response"
 )
 
-func RequirePermissions(required ...string) Middleware {
-	requiredSet := make(map[string]struct{}, len(required))
-	for _, permission := range required {
-		requiredSet[permission] = struct{}{}
-	}
-
+func RequirePermission(permission string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			user, ok := usercontext.UserFromContext(r.Context())
+			_, ok := usercontext.GetUser(r.Context())
 			if !ok {
-				response.Error(w, http.StatusUnauthorized, "authentication required")
+				response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "User context not found")
 				return
 			}
-			if hasPermissions(user.Permissions, requiredSet) {
-				next.ServeHTTP(w, r)
+
+			if !usercontext.HasPermission(r.Context(), permission) {
+				response.Error(w, http.StatusForbidden, "FORBIDDEN", "Permission denied")
 				return
 			}
-			response.Error(w, http.StatusForbidden, "permission denied")
+
+			next.ServeHTTP(w, r)
 		})
 	}
 }
 
-func hasPermissions(userPermissions []string, required map[string]struct{}) bool {
-	if len(required) == 0 {
-		return true
-	}
+func RequireRole(role string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, ok := usercontext.GetUser(r.Context())
+			if !ok {
+				response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "User context not found")
+				return
+			}
 
-	granted := make(map[string]struct{}, len(userPermissions))
-	for _, permission := range userPermissions {
-		granted[permission] = struct{}{}
+			if !usercontext.HasRole(r.Context(), role) {
+				response.Error(w, http.StatusForbidden, "FORBIDDEN", "Role denied")
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
 	}
-	for permission := range required {
-		if _, ok := granted[permission]; !ok {
-			return false
-		}
-	}
-	return true
 }
