@@ -1,10 +1,21 @@
 package user
 
-import "time"
+import "github.com/google/uuid"
 
-type Entity struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+type User struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	Email          string
+	PasswordHash   string
+	FullName       string
+	Phone          string
+	AvatarPath     string
+	Status         string
+}
+
+type RoleTemplate struct {
+	Code        string
+	Name        string
+	Description string
+	Permissions []string
 }
