@@ -1,0 +1,10 @@
+.env
+.gocache/
+*.exe
+*.log
+*.zip
+project.zip
+.agents/
+.vscode/
+bin/
+tmp/

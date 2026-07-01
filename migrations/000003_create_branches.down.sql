@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS user_branches;
+DROP TABLE IF EXISTS branches;

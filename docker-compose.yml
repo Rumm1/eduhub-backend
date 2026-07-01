@@ -1,0 +1,25 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: eduhub-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: eduhub
+      POSTGRES_PASSWORD: eduhub_password
+      POSTGRES_DB: eduhub
+    ports:
+      - "5432:5432"
+    volumes:
+      - eduhub_pg_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    container_name: eduhub-redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+volumes:
+  eduhub_pg_data:

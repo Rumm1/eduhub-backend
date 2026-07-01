@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS schedules;
+DROP TABLE IF EXISTS group_students;
+DROP TABLE IF EXISTS groups;
