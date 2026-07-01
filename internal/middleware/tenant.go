@@ -1,30 +1,46 @@
 package middleware
 
 import (
-	"context"
 	"net/http"
+
+	usercontext "github.com/Rumm1/eduhub-backend/internal/shared/context"
+	"github.com/Rumm1/eduhub-backend/internal/shared/response"
 )
 
-type tenantKey struct{}
+func RequireTenant(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user, ok := usercontext.GetUser(r.Context())
+		if !ok {
+			response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "User context not found")
+			return
+		}
 
-const TenantHeader = "X-Tenant-ID"
+		if user.OrganizationID == nil {
+			response.Error(w, http.StatusForbidden, "TENANT_REQUIRED", "Organization is required")
+			return
+		}
 
-func Tenant() Middleware {
+		next.ServeHTTP(w, r)
+	})
+}
+
+func RequireBranchAccess(branchID string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			tenantID := r.Header.Get(TenantHeader)
-			if tenantID == "" {
-				next.ServeHTTP(w, r)
+			user, ok := usercontext.GetUser(r.Context())
+			if !ok {
+				response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "User context not found")
 				return
 			}
 
-			ctx := context.WithValue(r.Context(), tenantKey{}, tenantID)
-			next.ServeHTTP(w, r.WithContext(ctx))
+			for _, id := range user.BranchIDs {
+				if id.String() == branchID {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+
+			response.Error(w, http.StatusForbidden, "BRANCH_ACCESS_DENIED", "Branch access denied")
 		})
 	}
-}
-
-func TenantFromContext(ctx context.Context) string {
-	tenantID, _ := ctx.Value(tenantKey{}).(string)
-	return tenantID
 }
