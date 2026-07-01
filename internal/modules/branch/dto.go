@@ -1,14 +1,21 @@
 package branch
 
-type CreateRequest struct {
-	Name string `json:"name"`
+type CreateBranchRequest struct {
+	Name    string `json:"name"`
+	Address string `json:"address"`
+	Phone   string `json:"phone"`
 }
 
-type UpdateRequest struct {
-	Name string `json:"name"`
+type BranchResponse struct {
+	ID             string `json:"id"`
+	OrganizationID string `json:"organization_id"`
+	Name           string `json:"name"`
+	Address        string `json:"address,omitempty"`
+	Phone          string `json:"phone,omitempty"`
+	Status         string `json:"status"`
 }
 
-type ListResponse struct {
-	Items []Entity `json:"items"`
-	Total int64    `json:"total"`
+type ListBranchesResponse struct {
+	Items []BranchResponse `json:"items"`
+	Total int              `json:"total"`
 }

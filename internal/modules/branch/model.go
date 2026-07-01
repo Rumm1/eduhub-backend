@@ -1,10 +1,12 @@
 package branch
 
-import "time"
+import "github.com/google/uuid"
 
-type Entity struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+type Branch struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	Name           string
+	Address        string
+	Phone          string
+	Status         string
 }

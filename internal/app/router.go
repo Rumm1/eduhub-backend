@@ -7,6 +7,7 @@ import (
 
 	"github.com/Rumm1/eduhub-backend/internal/middleware"
 	authmodule "github.com/Rumm1/eduhub-backend/internal/modules/auth"
+	branchmodule "github.com/Rumm1/eduhub-backend/internal/modules/branch"
 	organizationmodule "github.com/Rumm1/eduhub-backend/internal/modules/organization"
 	platformjwt "github.com/Rumm1/eduhub-backend/internal/platform/jwt"
 	"github.com/Rumm1/eduhub-backend/internal/shared/response"
@@ -30,6 +31,10 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 	organizationRepository := organizationmodule.NewRepository(db)
 	organizationService := organizationmodule.NewService(organizationRepository)
 	organizationHandler := organizationmodule.NewHandler(organizationService)
+
+	branchRepository := branchmodule.NewRepository(db)
+	branchService := branchmodule.NewService(branchRepository)
+	branchHandler := branchmodule.NewHandler(branchService)
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		response.Message(w, http.StatusOK, "EduHub backend is running")
@@ -73,6 +78,13 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 			r.Use(middleware.RequireRole("SUPER_ADMIN"))
 
 			organizationmodule.RegisterPlatformRoutes(r, organizationHandler)
+		})
+
+		r.Route("/branches", func(r chi.Router) {
+			r.Use(middleware.Auth(jwtManager))
+			r.Use(middleware.RequireTenant)
+
+			branchmodule.RegisterRoutes(r, branchHandler)
 		})
 	})
 
