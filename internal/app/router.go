@@ -15,6 +15,7 @@ import (
 	organizationmodule "github.com/Rumm1/eduhub-backend/internal/modules/organization"
 	paymentmodule "github.com/Rumm1/eduhub-backend/internal/modules/payment"
 	payrollmodule "github.com/Rumm1/eduhub-backend/internal/modules/payroll"
+	reportmodule "github.com/Rumm1/eduhub-backend/internal/modules/report"
 	schedulemodule "github.com/Rumm1/eduhub-backend/internal/modules/schedule"
 	studentmodule "github.com/Rumm1/eduhub-backend/internal/modules/student"
 	subjectmodule "github.com/Rumm1/eduhub-backend/internal/modules/subject"
@@ -86,6 +87,10 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 	payrollRepository := payrollmodule.NewRepository(db)
 	payrollService := payrollmodule.NewService(payrollRepository)
 	payrollHandler := payrollmodule.NewHandler(payrollService)
+
+	reportRepository := reportmodule.NewRepository(db)
+	reportService := reportmodule.NewService(reportRepository)
+	reportHandler := reportmodule.NewHandler(reportService)
 
 	scheduleRepository := schedulemodule.NewRepository(db)
 	scheduleService := schedulemodule.NewService(scheduleRepository)
@@ -217,6 +222,12 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 			r.Use(middleware.RequireTenant)
 
 			payrollmodule.RegisterRoutes(r, payrollHandler)
+		})
+		r.Route("/reports", func(r chi.Router) {
+			r.Use(middleware.Auth(jwtManager))
+			r.Use(middleware.RequireTenant)
+
+			reportmodule.RegisterRoutes(r, reportHandler)
 		})
 	})
 
