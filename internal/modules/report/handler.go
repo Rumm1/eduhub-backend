@@ -20,6 +20,7 @@ func (h *Handler) GetTeacherSchedule(w http.ResponseWriter, r *http.Request) {
 	fromDate := r.URL.Query().Get("from_date")
 	toDate := r.URL.Query().Get("to_date")
 	format := r.URL.Query().Get("format")
+	lang := r.URL.Query().Get("lang")
 
 	result, err := h.service.GetTeacherSchedule(r.Context(), teacherID, fromDate, toDate)
 	if err != nil {
@@ -28,7 +29,7 @@ func (h *Handler) GetTeacherSchedule(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if format == "xlsx" {
-		fileBytes, filename, err := BuildTeacherScheduleXLSX(result)
+		fileBytes, filename, err := BuildTeacherScheduleXLSX(result, lang)
 		if err != nil {
 			response.Error(w, http.StatusInternalServerError, "EXPORT_ERROR", "Failed to export report")
 			return
@@ -49,6 +50,7 @@ func (h *Handler) GetPaymentsReport(w http.ResponseWriter, r *http.Request) {
 	studentID := r.URL.Query().Get("student_id")
 	status := r.URL.Query().Get("status")
 	format := r.URL.Query().Get("format")
+	lang := r.URL.Query().Get("lang")
 
 	result, err := h.service.GetPaymentsReport(
 		r.Context(),
@@ -65,7 +67,7 @@ func (h *Handler) GetPaymentsReport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if format == "xlsx" {
-		fileBytes, filename, err := BuildPaymentsReportXLSX(result)
+		fileBytes, filename, err := BuildPaymentsReportXLSX(result, lang)
 		if err != nil {
 			response.Error(w, http.StatusInternalServerError, "EXPORT_ERROR", "Failed to export report")
 			return
