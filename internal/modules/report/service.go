@@ -13,23 +13,25 @@ import (
 )
 
 var (
-	ErrTenantRequired       = errors.New("tenant organization is required")
-	ErrTeacherIDRequired    = errors.New("teacher id is required")
-	ErrTeacherIDInvalid     = errors.New("teacher id is invalid")
-	ErrTeacherNotFound      = errors.New("teacher not found in organization")
-	ErrFromDateRequired     = errors.New("from date is required")
-	ErrToDateRequired       = errors.New("to date is required")
-	ErrFromDateInvalid      = errors.New("from date is invalid")
-	ErrToDateInvalid        = errors.New("to date is invalid")
-	ErrDateRangeInvalid     = errors.New("to date must be after or equal from date")
-	ErrForbiddenReport      = errors.New("forbidden report access")
-	ErrBranchIDInvalid      = errors.New("branch id is invalid")
-	ErrGroupIDInvalid       = errors.New("group id is invalid")
-	ErrStudentIDInvalid     = errors.New("student id is invalid")
-	ErrPaymentStatusInvalid = errors.New("payment status is invalid")
-	ErrPeriodRequired       = errors.New("period is required")
-	ErrPeriodInvalid        = errors.New("period is invalid")
-	ErrBalanceStatusInvalid = errors.New("balance status is invalid")
+	ErrTenantRequired                   = errors.New("tenant organization is required")
+	ErrTeacherIDRequired                = errors.New("teacher id is required")
+	ErrTeacherIDInvalid                 = errors.New("teacher id is invalid")
+	ErrTeacherNotFound                  = errors.New("teacher not found in organization")
+	ErrFromDateRequired                 = errors.New("from date is required")
+	ErrToDateRequired                   = errors.New("to date is required")
+	ErrFromDateInvalid                  = errors.New("from date is invalid")
+	ErrToDateInvalid                    = errors.New("to date is invalid")
+	ErrDateRangeInvalid                 = errors.New("to date must be after or equal from date")
+	ErrForbiddenReport                  = errors.New("forbidden report access")
+	ErrBranchIDInvalid                  = errors.New("branch id is invalid")
+	ErrGroupIDInvalid                   = errors.New("group id is invalid")
+	ErrStudentIDInvalid                 = errors.New("student id is invalid")
+	ErrPaymentStatusInvalid             = errors.New("payment status is invalid")
+	ErrPeriodRequired                   = errors.New("period is required")
+	ErrPeriodInvalid                    = errors.New("period is invalid")
+	ErrBalanceStatusInvalid             = errors.New("balance status is invalid")
+	ErrPayrollStatusInvalid             = errors.New("payroll status is invalid")
+	ErrTeacherConfirmationStatusInvalid = errors.New("teacher confirmation status is invalid")
 )
 
 type Service struct {
@@ -211,6 +213,58 @@ func (s *Service) GetStudentBalancesReport(
 	return buildStudentBalancesReportResponse(report, status), nil
 }
 
+func (s *Service) GetPayrollReport(
+	ctx context.Context,
+	periodRaw string,
+	teacherIDRaw string,
+	statusRaw string,
+	teacherConfirmationStatusRaw string,
+) (PayrollReportResponse, error) {
+	currentUser, ok := usercontext.GetUser(ctx)
+	if !ok || currentUser.OrganizationID == nil {
+		return PayrollReportResponse{}, ErrTenantRequired
+	}
+
+	year, month, period, err := parseReportPeriod(periodRaw)
+	if err != nil {
+		return PayrollReportResponse{}, err
+	}
+
+	teacherID := strings.TrimSpace(teacherIDRaw)
+	if teacherID != "" {
+		if _, err := uuid.Parse(teacherID); err != nil {
+			return PayrollReportResponse{}, ErrTeacherIDInvalid
+		}
+	}
+
+	status := strings.ToLower(strings.TrimSpace(statusRaw))
+	if status != "" && !isValidPayrollReportStatus(status) {
+		return PayrollReportResponse{}, ErrPayrollStatusInvalid
+	}
+
+	teacherConfirmationStatus := strings.ToLower(strings.TrimSpace(teacherConfirmationStatusRaw))
+	if teacherConfirmationStatus != "" && !isValidTeacherConfirmationStatus(teacherConfirmationStatus) {
+		return PayrollReportResponse{}, ErrTeacherConfirmationStatusInvalid
+	}
+
+	report, err := s.repo.GetPayrollReport(
+		ctx,
+		*currentUser.OrganizationID,
+		year,
+		month,
+		teacherID,
+		status,
+		teacherConfirmationStatus,
+	)
+	if err != nil {
+		return PayrollReportResponse{}, err
+	}
+
+	report.Period = period
+
+	return buildPayrollReportResponse(report), nil
+}
+
 func validateDateRange(fromDateRaw string, toDateRaw string) (string, string, error) {
 	fromDate := strings.TrimSpace(fromDateRaw)
 	if fromDate == "" {
@@ -370,6 +424,92 @@ func buildStudentBalancesReportResponse(report StudentBalancesReport, statusFilt
 	}
 }
 
+func buildPayrollReportResponse(report PayrollReport) PayrollReportResponse {
+	items := make([]PayrollReportItem, 0, len(report.Items))
+
+	totalLessons := 0
+	totalSubstitutions := 0
+	totalHours := 0.0
+	totalBaseAmount := 0.0
+	totalBonusAmount := 0.0
+	totalPenaltyAmount := 0.0
+	totalCorrectionAmount := 0.0
+	totalFinalAmount := 0.0
+
+	draftCount := 0
+	sentToTeacherCount := 0
+	teacherApprovedCount := 0
+	teacherDisputedCount := 0
+	approvedByFinanceCount := 0
+	paidCount := 0
+
+	for _, item := range report.Items {
+		totalLessons += item.LessonsCount
+		totalSubstitutions += item.SubstitutionCount
+		totalHours += moneyToFloat(item.HoursWorked)
+		totalBaseAmount += moneyToFloat(item.BaseAmount)
+		totalBonusAmount += moneyToFloat(item.BonusAmount)
+		totalPenaltyAmount += moneyToFloat(item.PenaltyAmount)
+		totalCorrectionAmount += moneyToFloat(item.CorrectionAmount)
+		totalFinalAmount += moneyToFloat(item.FinalAmount)
+
+		switch item.Status {
+		case "draft":
+			draftCount++
+		case "sent_to_teacher":
+			sentToTeacherCount++
+		case "teacher_approved":
+			teacherApprovedCount++
+		case "teacher_disputed":
+			teacherDisputedCount++
+		case "approved_by_finance":
+			approvedByFinanceCount++
+		case "paid":
+			paidCount++
+		}
+
+		items = append(items, PayrollReportItem{
+			EntryID:                   item.EntryID,
+			PeriodID:                  item.PeriodID,
+			TeacherID:                 item.TeacherID,
+			TeacherName:               item.TeacherName,
+			LessonsCount:              item.LessonsCount,
+			SubstitutionCount:         item.SubstitutionCount,
+			HoursWorked:               item.HoursWorked,
+			HourlyRate:                item.HourlyRate,
+			BaseAmount:                item.BaseAmount,
+			BonusAmount:               item.BonusAmount,
+			PenaltyAmount:             item.PenaltyAmount,
+			CorrectionAmount:          item.CorrectionAmount,
+			FinalAmount:               item.FinalAmount,
+			Status:                    item.Status,
+			TeacherConfirmationStatus: item.TeacherConfirmationStatus,
+			TeacherDisputeReason:      item.TeacherDisputeReason,
+			Comment:                   item.Comment,
+		})
+	}
+
+	return PayrollReportResponse{
+		Period:                 report.Period,
+		TotalEntries:           len(items),
+		TotalLessons:           totalLessons,
+		TotalSubstitutions:     totalSubstitutions,
+		TotalHours:             formatMoney(totalHours),
+		TotalBaseAmount:        formatMoney(totalBaseAmount),
+		TotalBonusAmount:       formatMoney(totalBonusAmount),
+		TotalPenaltyAmount:     formatMoney(totalPenaltyAmount),
+		TotalCorrectionAmount:  formatMoney(totalCorrectionAmount),
+		TotalFinalAmount:       formatMoney(totalFinalAmount),
+		DraftCount:             draftCount,
+		SentToTeacherCount:     sentToTeacherCount,
+		TeacherApprovedCount:   teacherApprovedCount,
+		TeacherDisputedCount:   teacherDisputedCount,
+		ApprovedByFinanceCount: approvedByFinanceCount,
+		PaidCount:              paidCount,
+		Items:                  items,
+	}
+}
+
 func hasRole(roles []string, role string) bool {
 	for _, item := range roles {
 		if item == role {
@@ -411,4 +551,39 @@ func moneyToFloat(value string) float64 {
 
 func formatMoney(value float64) string {
 	return fmt.Sprintf("%.2f", value)
+}
+
+func parseReportPeriod(periodRaw string) (int, int, string, error) {
+	period := strings.TrimSpace(periodRaw)
+	if period == "" {
+		return 0, 0, "", ErrPeriodRequired
+	}
+
+	periodDate, err := time.Parse("2006-01-02", period+"-01")
+	if err != nil {
+		return 0, 0, "", ErrPeriodInvalid
+	}
+
+	year := periodDate.Year()
+	month := int(periodDate.Month())
+
+	return year, month, periodDate.Format("2006-01"), nil
+}
+
+func isValidPayrollReportStatus(status string) bool {
+	switch status {
+	case "draft", "sent_to_teacher", "teacher_approved", "teacher_disputed", "approved_by_finance", "paid":
+		return true
+	default:
+		return false
+	}
+}
+
+func isValidTeacherConfirmationStatus(status string) bool {
+	switch status {
+	case "not_sent", "pending", "approved", "disputed":
+		return true
+	default:
+		return false
+	}
 }

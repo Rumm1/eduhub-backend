@@ -88,3 +88,43 @@ type StudentBalanceReportItem struct {
 	DebtAmount    string `json:"debt_amount"`
 	PaymentStatus string `json:"payment_status"`
 }
+
+type PayrollReportResponse struct {
+	Period                 string              `json:"period"`
+	TotalEntries           int                 `json:"total_entries"`
+	TotalLessons           int                 `json:"total_lessons"`
+	TotalSubstitutions     int                 `json:"total_substitutions"`
+	TotalHours             string              `json:"total_hours"`
+	TotalBaseAmount        string              `json:"total_base_amount"`
+	TotalBonusAmount       string              `json:"total_bonus_amount"`
+	TotalPenaltyAmount     string              `json:"total_penalty_amount"`
+	TotalCorrectionAmount  string              `json:"total_correction_amount"`
+	TotalFinalAmount       string              `json:"total_final_amount"`
+	DraftCount             int                 `json:"draft_count"`
+	SentToTeacherCount     int                 `json:"sent_to_teacher_count"`
+	TeacherApprovedCount   int                 `json:"teacher_approved_count"`
+	TeacherDisputedCount   int                 `json:"teacher_disputed_count"`
+	ApprovedByFinanceCount int                 `json:"approved_by_finance_count"`
+	PaidCount              int                 `json:"paid_count"`
+	Items                  []PayrollReportItem `json:"items"`
+}
+
+type PayrollReportItem struct {
+	EntryID                   string `json:"entry_id"`
+	PeriodID                  string `json:"period_id"`
+	TeacherID                 string `json:"teacher_id"`
+	TeacherName               string `json:"teacher_name"`
+	LessonsCount              int    `json:"lessons_count"`
+	SubstitutionCount         int    `json:"substitution_count"`
+	HoursWorked               string `json:"hours_worked"`
+	HourlyRate                string `json:"hourly_rate"`
+	BaseAmount                string `json:"base_amount"`
+	BonusAmount               string `json:"bonus_amount"`
+	PenaltyAmount             string `json:"penalty_amount"`
+	CorrectionAmount          string `json:"correction_amount"`
+	FinalAmount               string `json:"final_amount"`
+	Status                    string `json:"status"`
+	TeacherConfirmationStatus string `json:"teacher_confirmation_status"`
+	TeacherDisputeReason      string `json:"teacher_dispute_reason,omitempty"`
+	Comment                   string `json:"comment,omitempty"`
+}

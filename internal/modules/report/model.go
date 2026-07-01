@@ -88,3 +88,28 @@ type StudentBalanceItem struct {
 	DebtAmount    string
 	PaymentStatus string
 }
+
+type PayrollReport struct {
+	Period string
+	Items  []PayrollReportEntry
+}
+
+type PayrollReportEntry struct {
+	EntryID                   string
+	PeriodID                  string
+	TeacherID                 string
+	TeacherName               string
+	LessonsCount              int
+	SubstitutionCount         int
+	HoursWorked               string
+	HourlyRate                string
+	BaseAmount                string
+	BonusAmount               string
+	PenaltyAmount             string
+	CorrectionAmount          string
+	FinalAmount               string
+	Status                    string
+	TeacherConfirmationStatus string
+	TeacherDisputeReason      string
+	Comment                   string
+}

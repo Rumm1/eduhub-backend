@@ -2,6 +2,7 @@ package report
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -421,6 +422,115 @@ func (r *Repository) GetStudentBalancesReport(
 
 	return StudentBalancesReport{
 		Period: periodStart[:7],
+		Items:  items,
+	}, nil
+}
+func (r *Repository) GetPayrollReport(
+	ctx context.Context,
+	organizationID uuid.UUID,
+	year int,
+	month int,
+	teacherID string,
+	status string,
+	teacherConfirmationStatus string,
+) (PayrollReport, error) {
+	whereParts := []string{
+		"pe.organization_id = $1",
+		"pp.year = $2",
+		"pp.month = $3",
+	}
+
+	args := []interface{}{organizationID, year, month}
+	argIndex := 4
+
+	if teacherID != "" {
+		whereParts = append(whereParts, "pe.teacher_id = $"+itoa(argIndex)+"::uuid")
+		args = append(args, teacherID)
+		argIndex++
+	}
+
+	if status != "" {
+		whereParts = append(whereParts, "pe.status = $"+itoa(argIndex))
+		args = append(args, status)
+		argIndex++
+	}
+
+	if teacherConfirmationStatus != "" {
+		whereParts = append(whereParts, "pe.teacher_confirmation_status = $"+itoa(argIndex))
+		args = append(args, teacherConfirmationStatus)
+		argIndex++
+	}
+
+	whereSQL := strings.Join(whereParts, " AND ")
+
+	query := `
+		SELECT
+			pe.id::text,
+			pe.period_id::text,
+			pe.teacher_id::text,
+			u.full_name,
+			pe.lessons_count,
+			pe.substitution_count,
+			pe.hours_worked::text,
+			pe.hourly_rate::text,
+			pe.base_amount::text,
+			pe.bonus_amount::text,
+			pe.penalty_amount::text,
+			pe.correction_amount::text,
+			pe.final_amount::text,
+			pe.status,
+			pe.teacher_confirmation_status,
+			COALESCE(pe.teacher_dispute_reason, ''),
+			COALESCE(pe.comment, '')
+		FROM payroll_entries pe
+		JOIN payroll_periods pp ON pp.id = pe.period_id
+		JOIN users u ON u.id = pe.teacher_id
+		WHERE ` + whereSQL + `
+		ORDER BY u.full_name ASC
+	`
+
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		return PayrollReport{}, err
+	}
+	defer rows.Close()
+
+	items := make([]PayrollReportEntry, 0)
+
+	for rows.Next() {
+		var item PayrollReportEntry
+
+		if err := rows.Scan(
+			&item.EntryID,
+			&item.PeriodID,
+			&item.TeacherID,
+			&item.TeacherName,
+			&item.LessonsCount,
+			&item.SubstitutionCount,
+			&item.HoursWorked,
+			&item.HourlyRate,
+			&item.BaseAmount,
+			&item.BonusAmount,
+			&item.PenaltyAmount,
+			&item.CorrectionAmount,
+			&item.FinalAmount,
+			&item.Status,
+			&item.TeacherConfirmationStatus,
+			&item.TeacherDisputeReason,
+			&item.Comment,
+		); err != nil {
+			return PayrollReport{}, err
+		}
+
+		items = append(items, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return PayrollReport{}, err
+	}
+
+	return PayrollReport{
+		Period: fmt.Sprintf("%04d-%02d", year, month),
 		Items:  items,
 	}, nil
 }

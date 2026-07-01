@@ -240,13 +240,102 @@ func BuildStudentBalancesReportXLSX(report StudentBalancesReportResponse, langRa
 	return writeWorkbook(file, filename)
 }
 
+func BuildPayrollReportXLSX(report PayrollReportResponse, langRaw string) ([]byte, string, error) {
+	lang := normalizeExportLang(langRaw)
+	t := exportTranslations(lang)
+	file := excelize.NewFile()
+	sheetName := tr(t, "payroll_sheet", "Payroll")
+	defaultSheet := file.GetSheetName(0)
+	file.SetSheetName(defaultSheet, sheetName)
+	file.SetCellValue(sheetName, "A1", tr(t, "payroll_report", "Payroll Report"))
+	file.SetCellValue(sheetName, "A2", tr(t, "period", "Period"))
+	file.SetCellValue(sheetName, "B2", report.Period)
+	file.SetCellValue(sheetName, "A4", tr(t, "total_entries", "Total entries"))
+	file.SetCellValue(sheetName, "B4", report.TotalEntries)
+	file.SetCellValue(sheetName, "C4", tr(t, "total_lessons", "Total lessons"))
+	file.SetCellValue(sheetName, "D4", report.TotalLessons)
+	file.SetCellValue(sheetName, "E4", tr(t, "substitutions", "Substitutions"))
+	file.SetCellValue(sheetName, "F4", report.TotalSubstitutions)
+	file.SetCellValue(sheetName, "G4", tr(t, "hours", "Hours"))
+	file.SetCellValue(sheetName, "H4", report.TotalHours)
+	file.SetCellValue(sheetName, "I4", tr(t, "total_final_amount", "Total final amount"))
+	file.SetCellValue(sheetName, "J4", report.TotalFinalAmount)
+	file.SetCellValue(sheetName, "A5", tr(t, "draft", "Draft"))
+	file.SetCellValue(sheetName, "B5", report.DraftCount)
+	file.SetCellValue(sheetName, "C5", tr(t, "sent_to_teacher", "Sent to teacher"))
+	file.SetCellValue(sheetName, "D5", report.SentToTeacherCount)
+	file.SetCellValue(sheetName, "E5", tr(t, "teacher_approved", "Teacher approved"))
+	file.SetCellValue(sheetName, "F5", report.TeacherApprovedCount)
+	file.SetCellValue(sheetName, "G5", tr(t, "teacher_disputed", "Teacher disputed"))
+	file.SetCellValue(sheetName, "H5", report.TeacherDisputedCount)
+	file.SetCellValue(sheetName, "I5", tr(t, "approved_by_finance", "Approved by finance"))
+	file.SetCellValue(sheetName, "J5", report.ApprovedByFinanceCount)
+	file.SetCellValue(sheetName, "K5", tr(t, "paid", "Paid"))
+	file.SetCellValue(sheetName, "L5", report.PaidCount)
+
+	headers := []string{
+		tr(t, "teacher", "Teacher"),
+		tr(t, "lessons", "Lessons"),
+		tr(t, "substitutions", "Substitutions"),
+		tr(t, "hours_worked", "Hours worked"),
+		tr(t, "hourly_rate", "Hourly rate"),
+		tr(t, "base_amount", "Base amount"),
+		tr(t, "bonus_amount", "Bonus amount"),
+		tr(t, "penalty_amount", "Penalty amount"),
+		tr(t, "correction_amount", "Correction amount"),
+		tr(t, "final_amount", "Final amount"),
+		tr(t, "status", "Status"),
+		tr(t, "teacher_confirmation", "Teacher confirmation"),
+		tr(t, "dispute_reason", "Dispute reason"),
+		tr(t, "comment", "Comment"),
+	}
+
+	headerRow := 7
+	writeHeaders(file, sheetName, headers, headerRow)
+
+	for rowIndex, item := range report.Items {
+		row := headerRow + rowIndex + 1
+
+		values := []interface{}{
+			item.TeacherName,
+			item.LessonsCount,
+			item.SubstitutionCount,
+			item.HoursWorked,
+			item.HourlyRate,
+			item.BaseAmount,
+			item.BonusAmount,
+			item.PenaltyAmount,
+			item.CorrectionAmount,
+			item.FinalAmount,
+			translateValue(lang, item.Status),
+			translateValue(lang, item.TeacherConfirmationStatus),
+			item.TeacherDisputeReason,
+			item.Comment,
+		}
+
+		writeRow(file, sheetName, row, values)
+	}
+
+	autoWidth(file, sheetName, len(headers))
+
+	file.SetColWidth(sheetName, "A", "A", 28)
+	file.SetColWidth(sheetName, "M", "N", 42)
+
+	styleHeader(file, sheetName, "A1", "A1")
+	styleHeader(file, sheetName, "A7", "N7")
+
+	filename := fmt.Sprintf("payroll_report_%s_%s.xlsx", lang, report.Period)
+
+	return writeWorkbook(file, filename)
+}
+
 func normalizeExportLang(langRaw string) string {
 	lang := strings.ToLower(strings.TrimSpace(langRaw))
 
 	switch lang {
 	case "ru", "ru-ru", "russian", "русский":
 		return "ru"
-	case "kk", "kz", "kk-kz", "kazakh", "?аза?ша", "казахский":
+	case "kk", "kz", "kk-kz", "kazakh", "қазақша", "казахский":
 		return "kk"
 	case "en", "en-us", "en-gb", "english":
 		return "en"
@@ -259,6 +348,26 @@ func exportTranslations(lang string) map[string]string {
 	switch lang {
 	case "kk":
 		return map[string]string{
+			"payroll_sheet":           "Жалақы",
+			"payroll_report":          "Жалақы есебі",
+			"total_entries":           "Барлық жазбалар",
+			"total_final_amount":      "Қорытынды сома",
+			"teacher":                 "Оқытушы",
+			"lessons":                 "Сабақтар",
+			"hours_worked":            "Жұмыс істеген сағаттар",
+			"hourly_rate":             "Сағаттық ақы",
+			"base_amount":             "Негізгі сома",
+			"bonus_amount":            "Бонус сомасы",
+			"penalty_amount":          "Айыппұл сомасы",
+			"correction_amount":       "Түзету сомасы",
+			"final_amount":            "Қорытынды сома",
+			"teacher_confirmation":    "Оқытушының растауы",
+			"dispute_reason":          "Дау себебі",
+			"draft":                   "Жоба",
+			"sent_to_teacher":         "Оқытушыға жіберілді",
+			"teacher_approved":        "Оқытушы растады",
+			"teacher_disputed":        "Оқытушы даулаған",
+			"approved_by_finance":     "Қаржы бөлімі мақұлдады",
 			"teacher_schedule_sheet":  "Кесте",
 			"teacher_schedule_report": "Оқытушы кестесі есебі",
 			"payments_sheet":          "Төлемдер",
@@ -275,7 +384,7 @@ func exportTranslations(lang string) map[string]string {
 
 			"date":            "Күні",
 			"start":           "Басталуы",
-			"end":             "Ая?талуы",
+			"end":             "Аяқталуы",
 			"hours":           "Сағат",
 			"group":           "Топ",
 			"branch":          "Филиал",
@@ -316,6 +425,26 @@ func exportTranslations(lang string) map[string]string {
 		}
 	case "en":
 		return map[string]string{
+			"payroll_sheet":           "Payroll",
+			"payroll_report":          "Payroll Report",
+			"total_entries":           "Total entries",
+			"total_final_amount":      "Total final amount",
+			"teacher":                 "Teacher",
+			"lessons":                 "Lessons",
+			"hours_worked":            "Hours worked",
+			"hourly_rate":             "Hourly rate",
+			"base_amount":             "Base amount",
+			"bonus_amount":            "Bonus amount",
+			"penalty_amount":          "Penalty amount",
+			"correction_amount":       "Correction amount",
+			"final_amount":            "Final amount",
+			"teacher_confirmation":    "Teacher confirmation",
+			"dispute_reason":          "Dispute reason",
+			"draft":                   "Draft",
+			"sent_to_teacher":         "Sent to teacher",
+			"teacher_approved":        "Teacher approved",
+			"teacher_disputed":        "Teacher disputed",
+			"approved_by_finance":     "Approved by finance",
 			"teacher_schedule_sheet":  "Teacher Schedule",
 			"teacher_schedule_report": "Teacher Schedule Report",
 			"payments_sheet":          "Payments",
@@ -373,6 +502,26 @@ func exportTranslations(lang string) map[string]string {
 		}
 	default:
 		return map[string]string{
+			"payroll_sheet":           "Зарплата",
+			"payroll_report":          "Отчёт по зарплате",
+			"total_entries":           "Всего записей",
+			"total_final_amount":      "Итоговая сумма",
+			"teacher":                 "Преподаватель",
+			"lessons":                 "Уроки",
+			"hours_worked":            "Отработанные часы",
+			"hourly_rate":             "Ставка за час",
+			"base_amount":             "Базовая сумма",
+			"bonus_amount":            "Бонусная сумма",
+			"penalty_amount":          "Сумма штрафа",
+			"correction_amount":       "Сумма корректировки",
+			"final_amount":            "Итоговая сумма",
+			"teacher_confirmation":    "Подтверждение преподавателя",
+			"dispute_reason":          "Причина спора",
+			"draft":                   "Черновик",
+			"sent_to_teacher":         "Отправлено преподавателю",
+			"teacher_approved":        "Подтверждено преподавателем",
+			"teacher_disputed":        "Оспорено преподавателем",
+			"approved_by_finance":     "Одобрено финансами",
 			"teacher_schedule_sheet":  "Расписание",
 			"teacher_schedule_report": "Отчёт по расписанию преподавателя",
 			"payments_sheet":          "Платежи",
@@ -435,7 +584,7 @@ func translateBool(lang string, value bool) string {
 	if value {
 		switch lang {
 		case "kk":
-			return "И?"
+			return "Иә"
 		case "en":
 			return "Yes"
 		default:
@@ -445,7 +594,7 @@ func translateBool(lang string, value bool) string {
 
 	switch lang {
 	case "kk":
-		return "Жо?"
+		return "Жоқ"
 	case "en":
 		return "No"
 	default:
@@ -462,55 +611,79 @@ func translateValue(lang string, valueRaw string) string {
 
 	translations := map[string]map[string]string{
 		"ru": {
-			"partial":       "Частично",
-			"unpaid":        "Не оплачено",
-			"paid":          "Оплачено",
-			"pending":       "Ожидает",
-			"cancelled":     "Отменено",
-			"refunded":      "Возвращено",
-			"scheduled":     "Запланирован",
-			"completed":     "Проведён",
-			"missed":        "Пропущен",
-			"actual":        "Фактический преподаватель",
-			"planned_only":  "Только плановый преподаватель",
-			"cash":          "Наличные",
-			"card":          "Карта",
-			"kaspi":         "Kaspi",
-			"bank_transfer": "Банковский перевод",
+			"draft":               "Черновик",
+			"sent_to_teacher":     "Отправлено преподавателю",
+			"teacher_approved":    "Подтверждено преподавателем",
+			"teacher_disputed":    "Оспорено преподавателем",
+			"approved_by_finance": "Одобрено финансами",
+			"not_sent":            "Не отправлено",
+			"approved":            "Подтверждено",
+			"disputed":            "Оспорено",
+			"partial":             "Частично",
+			"unpaid":              "Не оплачено",
+			"paid":                "Оплачено",
+			"pending":             "Ожидает",
+			"cancelled":           "Отменено",
+			"refunded":            "Возвращено",
+			"scheduled":           "Запланирован",
+			"completed":           "Проведён",
+			"missed":              "Пропущен",
+			"actual":              "Фактический преподаватель",
+			"planned_only":        "Только плановый преподаватель",
+			"cash":                "Наличные",
+			"card":                "Карта",
+			"kaspi":               "Kaspi",
+			"bank_transfer":       "Банковский перевод",
 		},
 		"kk": {
-			"partial":       "Жартылай",
-			"unpaid":        "Төленбеген",
-			"paid":          "Т?ленді",
-			"pending":       "К?туде",
-			"cancelled":     "Болдырылмады",
-			"refunded":      "?айтарылды",
-			"scheduled":     "Жоспарлан?ан",
-			"completed":     "?ткізілді",
-			"missed":        "?ткізілмеді",
-			"actual":        "На?ты о?ытушы",
-			"planned_only":  "Тек жоспарлан?ан о?ытушы",
-			"cash":          "?олма-?ол",
-			"card":          "Карта",
-			"kaspi":         "Kaspi",
-			"bank_transfer": "Банк аударымы",
+			"draft":               "Жоба",
+			"sent_to_teacher":     "Оқытушыға жіберілді",
+			"teacher_approved":    "Оқытушы растады",
+			"teacher_disputed":    "Оқытушы даулаған",
+			"approved_by_finance": "Қаржы бөлімі мақұлдады",
+			"not_sent":            "Жіберілмеген",
+			"approved":            "Расталды",
+			"disputed":            "Даулы",
+			"partial":             "Жартылай",
+			"unpaid":              "Төленбеген",
+			"paid":                "Төленді",
+			"pending":             "Күтуде",
+			"cancelled":           "Болдырылмады",
+			"refunded":            "Қайтарылды",
+			"scheduled":           "Жоспарланған",
+			"completed":           "Өткізілді",
+			"missed":              "Өткізілмеді",
+			"actual":              "Нақты оқытушы",
+			"planned_only":        "Тек жоспарланған оқытушы",
+			"cash":                "Қолма-қол",
+			"card":                "Карта",
+			"kaspi":               "Kaspi",
+			"bank_transfer":       "Банк аударымы",
 		},
 		"en": {
-			"partial":       "Partial",
-			"unpaid":        "Unpaid",
-			"paid":          "Paid",
-			"pending":       "Pending",
-			"cancelled":     "Cancelled",
-			"refunded":      "Refunded",
-			"scheduled":     "Scheduled",
-			"completed":     "Completed",
-			"missed":        "Missed",
-			"actual":        "Actual teacher",
-			"planned_only":  "Planned teacher only",
-			"cash":          "Cash",
-			"card":          "Card",
-			"kaspi":         "Kaspi",
-			"bank_transfer": "Bank transfer",
+			"draft":               "Draft",
+			"sent_to_teacher":     "Sent to teacher",
+			"teacher_approved":    "Teacher approved",
+			"teacher_disputed":    "Teacher disputed",
+			"approved_by_finance": "Approved by finance",
+			"not_sent":            "Not sent",
+			"approved":            "Approved",
+			"disputed":            "Disputed",
+			"partial":             "Partial",
+			"unpaid":              "Unpaid",
+			"paid":                "Paid",
+			"pending":             "Pending",
+			"cancelled":           "Cancelled",
+			"refunded":            "Refunded",
+			"scheduled":           "Scheduled",
+			"completed":           "Completed",
+			"missed":              "Missed",
+			"actual":              "Actual teacher",
+			"planned_only":        "Planned teacher only",
+			"cash":                "Cash",
+			"card":                "Card",
+			"kaspi":               "Kaspi",
+			"bank_transfer":       "Bank transfer",
 		},
 	}
 
@@ -576,4 +749,13 @@ func writeWorkbook(file *excelize.File, filename string) ([]byte, string, error)
 	}
 
 	return buffer.Bytes(), filename, nil
+}
+
+func tr(t map[string]string, key string, fallback string) string {
+	value := strings.TrimSpace(t[key])
+	if value == "" {
+		return fallback
+	}
+
+	return value
 }

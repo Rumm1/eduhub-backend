@@ -116,6 +116,40 @@ func (h *Handler) GetStudentBalancesReport(w http.ResponseWriter, r *http.Reques
 	response.Success(w, http.StatusOK, result)
 }
 
+func (h *Handler) GetPayrollReport(w http.ResponseWriter, r *http.Request) {
+	period := r.URL.Query().Get("period")
+	teacherID := r.URL.Query().Get("teacher_id")
+	status := r.URL.Query().Get("status")
+	teacherConfirmationStatus := r.URL.Query().Get("teacher_confirmation_status")
+	format := r.URL.Query().Get("format")
+	lang := r.URL.Query().Get("lang")
+
+	result, err := h.service.GetPayrollReport(
+		r.Context(),
+		period,
+		teacherID,
+		status,
+		teacherConfirmationStatus,
+	)
+	if err != nil {
+		writeReportError(w, err)
+		return
+	}
+
+	if format == "xlsx" {
+		fileBytes, filename, err := BuildPayrollReportXLSX(result, lang)
+		if err != nil {
+			response.Error(w, http.StatusInternalServerError, "EXPORT_ERROR", "Failed to export report")
+			return
+		}
+
+		writeFile(w, fileBytes, filename)
+		return
+	}
+
+	response.Success(w, http.StatusOK, result)
+}
+
 func writeFile(w http.ResponseWriter, fileBytes []byte, filename string) {
 	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 	w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
@@ -160,6 +194,10 @@ func writeReportError(w http.ResponseWriter, err error) {
 		response.Error(w, http.StatusBadRequest, "PERIOD_INVALID", "Period must be in YYYY-MM format")
 	case errors.Is(err, ErrBalanceStatusInvalid):
 		response.Error(w, http.StatusBadRequest, "BALANCE_STATUS_INVALID", "Balance status is invalid")
+	case errors.Is(err, ErrPayrollStatusInvalid):
+		response.Error(w, http.StatusBadRequest, "PAYROLL_STATUS_INVALID", "Payroll status is invalid")
+	case errors.Is(err, ErrTeacherConfirmationStatusInvalid):
+		response.Error(w, http.StatusBadRequest, "TEACHER_CONFIRMATION_STATUS_INVALID", "Teacher confirmation status is invalid")
 	default:
 		response.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
 	}
