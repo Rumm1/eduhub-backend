@@ -19,10 +19,26 @@ func (h *Handler) GetTeacherSchedule(w http.ResponseWriter, r *http.Request) {
 	teacherID := r.URL.Query().Get("teacher_id")
 	fromDate := r.URL.Query().Get("from_date")
 	toDate := r.URL.Query().Get("to_date")
+	format := r.URL.Query().Get("format")
 
 	result, err := h.service.GetTeacherSchedule(r.Context(), teacherID, fromDate, toDate)
 	if err != nil {
 		writeReportError(w, err)
+		return
+	}
+
+	if format == "xlsx" {
+		fileBytes, filename, err := BuildTeacherScheduleXLSX(result)
+		if err != nil {
+			response.Error(w, http.StatusInternalServerError, "EXPORT_ERROR", "Failed to export report")
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+		w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
+		w.WriteHeader(http.StatusOK)
+
+		_, _ = w.Write(fileBytes)
 		return
 	}
 
