@@ -59,7 +59,7 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 		})
 
 		r.Route("/auth", func(r chi.Router) {
-			authmodule.RegisterRoutes(r, authHandler)
+			authmodule.RegisterRoutes(r, authHandler, jwtManager)
 		})
 	})
 

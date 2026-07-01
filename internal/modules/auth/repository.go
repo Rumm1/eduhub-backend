@@ -49,6 +49,36 @@ LIMIT 1
 	return user, nil
 }
 
+func (r *Repository) GetUserByID(ctx context.Context, userID uuid.UUID) (User, error) {
+	var user User
+
+	err := r.db.QueryRow(ctx, `
+SELECT
+id,
+organization_id,
+email,
+password_hash,
+full_name,
+status
+FROM users
+WHERE id = $1
+LIMIT 1
+`, userID).Scan(
+		&user.ID,
+		&user.OrganizationID,
+		&user.Email,
+		&user.PasswordHash,
+		&user.FullName,
+		&user.Status,
+	)
+
+	if err != nil {
+		return User{}, err
+	}
+
+	return user, nil
+}
+
 func (r *Repository) GetRoleCodesByUserID(ctx context.Context, userID uuid.UUID) ([]string, error) {
 	rows, err := r.db.Query(ctx, `
 SELECT r.code
@@ -148,6 +178,19 @@ func (r *Repository) GetUserAccessData(ctx context.Context, email string) (UserA
 		return UserAccessData{}, fmt.Errorf("get user by email: %w", err)
 	}
 
+	return r.buildUserAccessData(ctx, user)
+}
+
+func (r *Repository) GetUserAccessDataByID(ctx context.Context, userID uuid.UUID) (UserAccessData, error) {
+	user, err := r.GetUserByID(ctx, userID)
+	if err != nil {
+		return UserAccessData{}, fmt.Errorf("get user by id: %w", err)
+	}
+
+	return r.buildUserAccessData(ctx, user)
+}
+
+func (r *Repository) buildUserAccessData(ctx context.Context, user User) (UserAccessData, error) {
 	roles, err := r.GetRoleCodesByUserID(ctx, user.ID)
 	if err != nil {
 		return UserAccessData{}, fmt.Errorf("get roles: %w", err)

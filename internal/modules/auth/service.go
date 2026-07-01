@@ -7,6 +7,8 @@ import (
 
 	platformjwt "github.com/Rumm1/eduhub-backend/internal/platform/jwt"
 	"github.com/Rumm1/eduhub-backend/internal/platform/password"
+	usercontext "github.com/Rumm1/eduhub-backend/internal/shared/context"
+	"github.com/google/uuid"
 )
 
 var (
@@ -56,28 +58,54 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (LoginResponse, e
 		return LoginResponse{}, err
 	}
 
-	var organizationID *string
-	if accessData.User.OrganizationID != nil {
-		value := accessData.User.OrganizationID.String()
-		organizationID = &value
-	}
-
-	branchIDs := make([]string, 0, len(accessData.BranchIDs))
-	for _, id := range accessData.BranchIDs {
-		branchIDs = append(branchIDs, id.String())
-	}
-
 	return LoginResponse{
 		AccessToken: accessToken,
 		TokenType:   "Bearer",
-		User: UserResponse{
-			ID:             accessData.User.ID.String(),
-			OrganizationID: organizationID,
-			Email:          accessData.User.Email,
-			FullName:       accessData.User.FullName,
-			Roles:          accessData.Roles,
-			Permissions:    accessData.Permissions,
-			BranchIDs:      branchIDs,
-		},
+		User:        buildUserResponse(accessData),
 	}, nil
+}
+
+func (s *Service) Me(ctx context.Context) (UserResponse, error) {
+	currentUser, ok := usercontext.GetUser(ctx)
+	if !ok {
+		return UserResponse{}, errors.New("user context not found")
+	}
+
+	accessData, err := s.repo.GetUserAccessDataByID(ctx, currentUser.UserID)
+	if err != nil {
+		return UserResponse{}, err
+	}
+
+	return buildUserResponse(accessData), nil
+}
+
+func buildUserResponse(accessData UserAccessData) UserResponse {
+	return UserResponse{
+		ID:             accessData.User.ID.String(),
+		OrganizationID: uuidToStringPointer(accessData.User.OrganizationID),
+		Email:          accessData.User.Email,
+		FullName:       accessData.User.FullName,
+		Roles:          accessData.Roles,
+		Permissions:    accessData.Permissions,
+		BranchIDs:      uuidSliceToStringSlice(accessData.BranchIDs),
+	}
+}
+
+func uuidToStringPointer(id *uuid.UUID) *string {
+	if id == nil {
+		return nil
+	}
+
+	value := id.String()
+	return &value
+}
+
+func uuidSliceToStringSlice(ids []uuid.UUID) []string {
+	result := make([]string, 0, len(ids))
+
+	for _, id := range ids {
+		result = append(result, id.String())
+	}
+
+	return result
 }

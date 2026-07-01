@@ -39,3 +39,13 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 
 	response.Success(w, http.StatusOK, result)
 }
+
+func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
+	result, err := h.service.Me(r.Context())
+	if err != nil {
+		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "Unauthorized")
+		return
+	}
+
+	response.Success(w, http.StatusOK, result)
+}
