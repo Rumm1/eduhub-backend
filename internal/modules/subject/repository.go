@@ -2,45 +2,89 @@ package subject
 
 import (
 	"context"
-	"errors"
-	"time"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var ErrNotFound = errors.New("entity not found")
-
-type Repository struct{}
-
-func NewRepository() *Repository {
-	return &Repository{}
+type Repository struct {
+	db *pgxpool.Pool
 }
 
-func (r *Repository) List(ctx context.Context) ([]Entity, error) {
-	return []Entity{}, nil
+func NewRepository(db *pgxpool.Pool) *Repository {
+	return &Repository{db: db}
 }
 
-func (r *Repository) Get(ctx context.Context, id string) (Entity, error) {
-	if id == "" {
-		return Entity{}, ErrNotFound
+func (r *Repository) Create(ctx context.Context, subject Subject) (Subject, error) {
+	err := r.db.QueryRow(ctx, `
+INSERT INTO subjects (
+id,
+organization_id,
+name,
+description,
+status
+)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, organization_id, name, COALESCE(description, ''), status
+`,
+		subject.ID,
+		subject.OrganizationID,
+		subject.Name,
+		subject.Description,
+		subject.Status,
+	).Scan(
+		&subject.ID,
+		&subject.OrganizationID,
+		&subject.Name,
+		&subject.Description,
+		&subject.Status,
+	)
+
+	if err != nil {
+		return Subject{}, err
 	}
-	return Entity{ID: id, CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
+
+	return subject, nil
 }
 
-func (r *Repository) Create(ctx context.Context, request CreateRequest) (Entity, error) {
-	now := time.Now()
-	return Entity{ID: now.Format("20060102150405.000000000"), Name: request.Name, CreatedAt: now, UpdatedAt: now}, nil
-}
-
-func (r *Repository) Update(ctx context.Context, id string, request UpdateRequest) (Entity, error) {
-	if id == "" {
-		return Entity{}, ErrNotFound
+func (r *Repository) ListByOrganizationID(ctx context.Context, organizationID uuid.UUID) ([]Subject, error) {
+	rows, err := r.db.Query(ctx, `
+SELECT
+id,
+organization_id,
+name,
+COALESCE(description, ''),
+status
+FROM subjects
+WHERE organization_id = $1
+ORDER BY created_at DESC
+`, organizationID)
+	if err != nil {
+		return nil, err
 	}
-	now := time.Now()
-	return Entity{ID: id, Name: request.Name, CreatedAt: now, UpdatedAt: now}, nil
-}
+	defer rows.Close()
 
-func (r *Repository) Delete(ctx context.Context, id string) error {
-	if id == "" {
-		return ErrNotFound
+	subjects := make([]Subject, 0)
+
+	for rows.Next() {
+		var item Subject
+
+		if err := rows.Scan(
+			&item.ID,
+			&item.OrganizationID,
+			&item.Name,
+			&item.Description,
+			&item.Status,
+		); err != nil {
+			return nil, err
+		}
+
+		subjects = append(subjects, item)
 	}
-	return nil
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return subjects, nil
 }

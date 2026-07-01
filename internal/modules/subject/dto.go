@@ -1,14 +1,19 @@
 package subject
 
-type CreateRequest struct {
-	Name string `json:"name"`
+type CreateSubjectRequest struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }
 
-type UpdateRequest struct {
-	Name string `json:"name"`
+type SubjectResponse struct {
+	ID             string `json:"id"`
+	OrganizationID string `json:"organization_id"`
+	Name           string `json:"name"`
+	Description    string `json:"description,omitempty"`
+	Status         string `json:"status"`
 }
 
-type ListResponse struct {
-	Items []Entity `json:"items"`
-	Total int64    `json:"total"`
+type ListSubjectsResponse struct {
+	Items []SubjectResponse `json:"items"`
+	Total int               `json:"total"`
 }
