@@ -1,9 +1,12 @@
 package payroll
 
 import (
+	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/Rumm1/eduhub-backend/internal/shared/response"
+	"github.com/go-chi/chi/v5"
 )
 
 type Handler struct {
@@ -11,17 +14,169 @@ type Handler struct {
 }
 
 func NewHandler(service *Service) *Handler {
-	if service == nil {
-		service = NewService(nil)
-	}
 	return &Handler{service: service}
 }
 
-func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
-	items, err := h.service.List(r.Context())
-	if err != nil {
-		response.Error(w, http.StatusInternalServerError, err.Error())
+func (h *Handler) CreatePeriod(w http.ResponseWriter, r *http.Request) {
+	var req CreatePeriodRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "INVALID_JSON", "Invalid request body")
 		return
 	}
-	response.OK(w, ListResponse{Items: items, Total: int64(len(items))})
+
+	result, err := h.service.CreatePeriod(r.Context(), req)
+	if err != nil {
+		writePayrollError(w, err)
+		return
+	}
+
+	response.Success(w, http.StatusCreated, result)
+}
+
+func (h *Handler) GenerateForPeriod(w http.ResponseWriter, r *http.Request) {
+	periodID := chi.URLParam(r, "periodID")
+
+	result, err := h.service.GenerateForPeriod(r.Context(), periodID)
+	if err != nil {
+		writePayrollError(w, err)
+		return
+	}
+
+	response.Success(w, http.StatusOK, result)
+}
+
+func (h *Handler) ListEntries(w http.ResponseWriter, r *http.Request) {
+	result, err := h.service.ListEntries(r.Context())
+	if err != nil {
+		writePayrollError(w, err)
+		return
+	}
+
+	response.Success(w, http.StatusOK, result)
+}
+
+func (h *Handler) ListMyEntries(w http.ResponseWriter, r *http.Request) {
+	result, err := h.service.ListMyEntries(r.Context())
+	if err != nil {
+		writePayrollError(w, err)
+		return
+	}
+
+	response.Success(w, http.StatusOK, result)
+}
+
+func (h *Handler) CreateAdjustment(w http.ResponseWriter, r *http.Request) {
+	entryID := chi.URLParam(r, "entryID")
+
+	var req CreateAdjustmentRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "INVALID_JSON", "Invalid request body")
+		return
+	}
+
+	result, err := h.service.CreateAdjustment(r.Context(), entryID, req)
+	if err != nil {
+		writePayrollError(w, err)
+		return
+	}
+
+	response.Success(w, http.StatusCreated, result)
+}
+
+func (h *Handler) SendToTeacher(w http.ResponseWriter, r *http.Request) {
+	entryID := chi.URLParam(r, "entryID")
+
+	result, err := h.service.SendToTeacher(r.Context(), entryID)
+	if err != nil {
+		writePayrollError(w, err)
+		return
+	}
+
+	response.Success(w, http.StatusOK, result)
+}
+
+func (h *Handler) ConfirmByTeacher(w http.ResponseWriter, r *http.Request) {
+	entryID := chi.URLParam(r, "entryID")
+
+	result, err := h.service.ConfirmByTeacher(r.Context(), entryID)
+	if err != nil {
+		writePayrollError(w, err)
+		return
+	}
+
+	response.Success(w, http.StatusOK, result)
+}
+
+func (h *Handler) DisputeByTeacher(w http.ResponseWriter, r *http.Request) {
+	entryID := chi.URLParam(r, "entryID")
+
+	var req DisputePayrollRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "INVALID_JSON", "Invalid request body")
+		return
+	}
+
+	result, err := h.service.DisputeByTeacher(r.Context(), entryID, req)
+	if err != nil {
+		writePayrollError(w, err)
+		return
+	}
+
+	response.Success(w, http.StatusOK, result)
+}
+
+func (h *Handler) ApproveByFinance(w http.ResponseWriter, r *http.Request) {
+	entryID := chi.URLParam(r, "entryID")
+
+	result, err := h.service.ApproveByFinance(r.Context(), entryID)
+	if err != nil {
+		writePayrollError(w, err)
+		return
+	}
+
+	response.Success(w, http.StatusOK, result)
+}
+
+func (h *Handler) MarkPaid(w http.ResponseWriter, r *http.Request) {
+	entryID := chi.URLParam(r, "entryID")
+
+	result, err := h.service.MarkPaid(r.Context(), entryID)
+	if err != nil {
+		writePayrollError(w, err)
+		return
+	}
+
+	response.Success(w, http.StatusOK, result)
+}
+
+func writePayrollError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, ErrTenantRequired):
+		response.Error(w, http.StatusForbidden, "TENANT_REQUIRED", "Tenant organization is required")
+	case errors.Is(err, ErrPeriodNotFound):
+		response.Error(w, http.StatusNotFound, "PAYROLL_PERIOD_NOT_FOUND", "Payroll period not found")
+	case errors.Is(err, ErrPeriodIDInvalid):
+		response.Error(w, http.StatusBadRequest, "PAYROLL_PERIOD_ID_INVALID", "Payroll period id is invalid")
+	case errors.Is(err, ErrEntryNotFound):
+		response.Error(w, http.StatusNotFound, "PAYROLL_ENTRY_NOT_FOUND", "Payroll entry not found")
+	case errors.Is(err, ErrEntryIDInvalid):
+		response.Error(w, http.StatusBadRequest, "PAYROLL_ENTRY_ID_INVALID", "Payroll entry id is invalid")
+	case errors.Is(err, ErrMonthInvalid):
+		response.Error(w, http.StatusBadRequest, "MONTH_INVALID", "Month must be from 1 to 12")
+	case errors.Is(err, ErrYearInvalid):
+		response.Error(w, http.StatusBadRequest, "YEAR_INVALID", "Year is invalid")
+	case errors.Is(err, ErrAdjustmentTypeInvalid):
+		response.Error(w, http.StatusBadRequest, "ADJUSTMENT_TYPE_INVALID", "Adjustment type is invalid")
+	case errors.Is(err, ErrAdjustmentAmountInvalid):
+		response.Error(w, http.StatusBadRequest, "ADJUSTMENT_AMOUNT_INVALID", "Adjustment amount must be greater than zero")
+	case errors.Is(err, ErrDisputeReasonRequired):
+		response.Error(w, http.StatusBadRequest, "DISPUTE_REASON_REQUIRED", "Dispute reason is required")
+	case errors.Is(err, ErrInvalidPayrollStatus):
+		response.Error(w, http.StatusBadRequest, "INVALID_PAYROLL_STATUS", "Invalid payroll status transition")
+	default:
+		response.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+	}
 }
