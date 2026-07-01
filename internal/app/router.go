@@ -10,6 +10,7 @@ import (
 	branchmodule "github.com/Rumm1/eduhub-backend/internal/modules/branch"
 	organizationmodule "github.com/Rumm1/eduhub-backend/internal/modules/organization"
 	subjectmodule "github.com/Rumm1/eduhub-backend/internal/modules/subject"
+	teachermodule "github.com/Rumm1/eduhub-backend/internal/modules/teacher"
 	usermodule "github.com/Rumm1/eduhub-backend/internal/modules/user"
 	platformjwt "github.com/Rumm1/eduhub-backend/internal/platform/jwt"
 	"github.com/Rumm1/eduhub-backend/internal/shared/response"
@@ -45,6 +46,10 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 	subjectRepository := subjectmodule.NewRepository(db)
 	subjectService := subjectmodule.NewService(subjectRepository)
 	subjectHandler := subjectmodule.NewHandler(subjectService)
+
+	teacherRepository := teachermodule.NewRepository(db)
+	teacherService := teachermodule.NewService(teacherRepository)
+	teacherHandler := teachermodule.NewHandler(teacherService)
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		response.Message(w, http.StatusOK, "EduHub backend is running")
@@ -109,6 +114,13 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 			r.Use(middleware.RequireTenant)
 
 			subjectmodule.RegisterRoutes(r, subjectHandler)
+		})
+
+		r.Route("/teachers", func(r chi.Router) {
+			r.Use(middleware.Auth(jwtManager))
+			r.Use(middleware.RequireTenant)
+
+			teachermodule.RegisterRoutes(r, teacherHandler)
 		})
 	})
 
