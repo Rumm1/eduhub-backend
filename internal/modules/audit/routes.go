@@ -1,16 +1,10 @@
 package audit
 
-import "net/http"
+import (
+	"github.com/Rumm1/eduhub-backend/internal/middleware"
+	"github.com/go-chi/chi/v5"
+)
 
-func RegisterRoutes(mux *http.ServeMux, basePath string, handler *Handler) {
-	if mux == nil {
-		return
-	}
-	if basePath == "" {
-		basePath = "/audit"
-	}
-	if handler == nil {
-		handler = NewHandler(nil)
-	}
-	mux.HandleFunc("GET "+basePath, handler.List)
+func RegisterRoutes(r chi.Router, handler *Handler) {
+	r.With(middleware.RequirePermission("audit_logs.read")).Get("/", handler.List)
 }

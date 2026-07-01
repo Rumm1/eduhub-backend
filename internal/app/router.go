@@ -7,6 +7,7 @@ import (
 
 	"github.com/Rumm1/eduhub-backend/internal/middleware"
 	attendancemodule "github.com/Rumm1/eduhub-backend/internal/modules/attendance"
+	auditmodule "github.com/Rumm1/eduhub-backend/internal/modules/audit"
 	authmodule "github.com/Rumm1/eduhub-backend/internal/modules/auth"
 	branchmodule "github.com/Rumm1/eduhub-backend/internal/modules/branch"
 	groupmodule "github.com/Rumm1/eduhub-backend/internal/modules/group"
@@ -91,6 +92,10 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 	reportRepository := reportmodule.NewRepository(db)
 	reportService := reportmodule.NewService(reportRepository)
 	reportHandler := reportmodule.NewHandler(reportService)
+
+	auditRepository := auditmodule.NewRepository(db)
+	auditService := auditmodule.NewService(auditRepository)
+	auditHandler := auditmodule.NewHandler(auditService)
 
 	scheduleRepository := schedulemodule.NewRepository(db)
 	scheduleService := schedulemodule.NewService(scheduleRepository)
@@ -228,6 +233,12 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 			r.Use(middleware.RequireTenant)
 
 			reportmodule.RegisterRoutes(r, reportHandler)
+		})
+		r.Route("/audit-logs", func(r chi.Router) {
+			r.Use(middleware.Auth(jwtManager))
+			r.Use(middleware.RequireTenant)
+
+			auditmodule.RegisterRoutes(r, auditHandler)
 		})
 	})
 
