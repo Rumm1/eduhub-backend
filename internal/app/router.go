@@ -13,6 +13,7 @@ import (
 	homeworkmodule "github.com/Rumm1/eduhub-backend/internal/modules/homework"
 	lessonmodule "github.com/Rumm1/eduhub-backend/internal/modules/lesson"
 	organizationmodule "github.com/Rumm1/eduhub-backend/internal/modules/organization"
+	schedulemodule "github.com/Rumm1/eduhub-backend/internal/modules/schedule"
 	studentmodule "github.com/Rumm1/eduhub-backend/internal/modules/student"
 	subjectmodule "github.com/Rumm1/eduhub-backend/internal/modules/subject"
 	teachermodule "github.com/Rumm1/eduhub-backend/internal/modules/teacher"
@@ -75,6 +76,10 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 	homeworkRepository := homeworkmodule.NewRepository(db)
 	homeworkService := homeworkmodule.NewService(homeworkRepository)
 	homeworkHandler := homeworkmodule.NewHandler(homeworkService)
+
+	scheduleRepository := schedulemodule.NewRepository(db)
+	scheduleService := schedulemodule.NewService(scheduleRepository)
+	scheduleHandler := schedulemodule.NewHandler(scheduleService)
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		response.Message(w, http.StatusOK, "EduHub backend is running")
@@ -181,6 +186,13 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 			r.Use(middleware.RequireTenant)
 
 			homeworkmodule.RegisterRoutes(r, homeworkHandler)
+		})
+
+		r.Route("/schedules", func(r chi.Router) {
+			r.Use(middleware.Auth(jwtManager))
+			r.Use(middleware.RequireTenant)
+
+			schedulemodule.RegisterRoutes(r, scheduleHandler)
 		})
 	})
 

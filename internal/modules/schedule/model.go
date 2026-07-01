@@ -1,10 +1,14 @@
 package schedule
 
-import "time"
+import "github.com/google/uuid"
 
-type Entity struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+type Schedule struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	BranchID       uuid.UUID
+	GroupID        uuid.UUID
+	Weekday        int
+	StartTime      string
+	EndTime        string
+	Room           string
 }
