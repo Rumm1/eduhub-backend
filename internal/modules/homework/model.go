@@ -1,10 +1,14 @@
 package homework
 
-import "time"
+import "github.com/google/uuid"
 
-type Entity struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+type Homework struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	GroupID        uuid.UUID
+	LessonID       uuid.UUID
+	TeacherID      string
+	Title          string
+	Description    string
+	DueDate        string
 }
