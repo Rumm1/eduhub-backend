@@ -1,10 +1,19 @@
 package auth
 
-import "time"
+import "github.com/google/uuid"
 
-type Entity struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+type User struct {
+	ID             uuid.UUID
+	OrganizationID *uuid.UUID
+	Email          string
+	PasswordHash   string
+	FullName       string
+	Status         string
+}
+
+type UserAccessData struct {
+	User        User
+	Roles       []string
+	Permissions []string
+	BranchIDs   []uuid.UUID
 }

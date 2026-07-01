@@ -2,45 +2,171 @@ package auth
 
 import (
 	"context"
-	"errors"
-	"time"
+	"fmt"
+	"strings"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var ErrNotFound = errors.New("entity not found")
-
-type Repository struct{}
-
-func NewRepository() *Repository {
-	return &Repository{}
+type Repository struct {
+	db *pgxpool.Pool
 }
 
-func (r *Repository) List(ctx context.Context) ([]Entity, error) {
-	return []Entity{}, nil
+func NewRepository(db *pgxpool.Pool) *Repository {
+	return &Repository{db: db}
 }
 
-func (r *Repository) Get(ctx context.Context, id string) (Entity, error) {
-	if id == "" {
-		return Entity{}, ErrNotFound
+func (r *Repository) GetUserByEmail(ctx context.Context, email string) (User, error) {
+	normalizedEmail := strings.ToLower(strings.TrimSpace(email))
+
+	var user User
+
+	err := r.db.QueryRow(ctx, `
+SELECT
+id,
+organization_id,
+email,
+password_hash,
+full_name,
+status
+FROM users
+WHERE LOWER(email) = $1
+LIMIT 1
+`, normalizedEmail).Scan(
+		&user.ID,
+		&user.OrganizationID,
+		&user.Email,
+		&user.PasswordHash,
+		&user.FullName,
+		&user.Status,
+	)
+
+	if err != nil {
+		return User{}, err
 	}
-	return Entity{ID: id, CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
+
+	return user, nil
 }
 
-func (r *Repository) Create(ctx context.Context, request CreateRequest) (Entity, error) {
-	now := time.Now()
-	return Entity{ID: now.Format("20060102150405.000000000"), Name: request.Name, CreatedAt: now, UpdatedAt: now}, nil
-}
-
-func (r *Repository) Update(ctx context.Context, id string, request UpdateRequest) (Entity, error) {
-	if id == "" {
-		return Entity{}, ErrNotFound
+func (r *Repository) GetRoleCodesByUserID(ctx context.Context, userID uuid.UUID) ([]string, error) {
+	rows, err := r.db.Query(ctx, `
+SELECT r.code
+FROM roles r
+JOIN user_roles ur ON ur.role_id = r.id
+WHERE ur.user_id = $1
+ORDER BY r.code
+`, userID)
+	if err != nil {
+		return nil, err
 	}
-	now := time.Now()
-	return Entity{ID: id, Name: request.Name, CreatedAt: now, UpdatedAt: now}, nil
+	defer rows.Close()
+
+	var roles []string
+
+	for rows.Next() {
+		var role string
+		if err := rows.Scan(&role); err != nil {
+			return nil, err
+		}
+
+		roles = append(roles, role)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return roles, nil
 }
 
-func (r *Repository) Delete(ctx context.Context, id string) error {
-	if id == "" {
-		return ErrNotFound
+func (r *Repository) GetPermissionCodesByUserID(ctx context.Context, userID uuid.UUID) ([]string, error) {
+	rows, err := r.db.Query(ctx, `
+SELECT DISTINCT p.code
+FROM permissions p
+JOIN role_permissions rp ON rp.permission_id = p.id
+JOIN user_roles ur ON ur.role_id = rp.role_id
+WHERE ur.user_id = $1
+ORDER BY p.code
+`, userID)
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	defer rows.Close()
+
+	var permissions []string
+
+	for rows.Next() {
+		var permission string
+		if err := rows.Scan(&permission); err != nil {
+			return nil, err
+		}
+
+		permissions = append(permissions, permission)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return permissions, nil
+}
+
+func (r *Repository) GetBranchIDsByUserID(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := r.db.Query(ctx, `
+SELECT branch_id
+FROM user_branches
+WHERE user_id = $1
+ORDER BY branch_id
+`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var branchIDs []uuid.UUID
+
+	for rows.Next() {
+		var branchID uuid.UUID
+		if err := rows.Scan(&branchID); err != nil {
+			return nil, err
+		}
+
+		branchIDs = append(branchIDs, branchID)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return branchIDs, nil
+}
+
+func (r *Repository) GetUserAccessData(ctx context.Context, email string) (UserAccessData, error) {
+	user, err := r.GetUserByEmail(ctx, email)
+	if err != nil {
+		return UserAccessData{}, fmt.Errorf("get user by email: %w", err)
+	}
+
+	roles, err := r.GetRoleCodesByUserID(ctx, user.ID)
+	if err != nil {
+		return UserAccessData{}, fmt.Errorf("get roles: %w", err)
+	}
+
+	permissions, err := r.GetPermissionCodesByUserID(ctx, user.ID)
+	if err != nil {
+		return UserAccessData{}, fmt.Errorf("get permissions: %w", err)
+	}
+
+	branchIDs, err := r.GetBranchIDsByUserID(ctx, user.ID)
+	if err != nil {
+		return UserAccessData{}, fmt.Errorf("get branch ids: %w", err)
+	}
+
+	return UserAccessData{
+		User:        user,
+		Roles:       roles,
+		Permissions: permissions,
+		BranchIDs:   branchIDs,
+	}, nil
 }

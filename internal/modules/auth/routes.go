@@ -1,16 +1,7 @@
 package auth
 
-import "net/http"
+import "github.com/go-chi/chi/v5"
 
-func RegisterRoutes(mux *http.ServeMux, basePath string, handler *Handler) {
-	if mux == nil {
-		return
-	}
-	if basePath == "" {
-		basePath = "/auth"
-	}
-	if handler == nil {
-		handler = NewHandler(nil)
-	}
-	mux.HandleFunc("GET "+basePath, handler.List)
+func RegisterRoutes(r chi.Router, handler *Handler) {
+	r.Post("/login", handler.Login)
 }

@@ -1,34 +1,83 @@
 package auth
 
-import "context"
+import (
+	"context"
+	"errors"
+	"strings"
+
+	platformjwt "github.com/Rumm1/eduhub-backend/internal/platform/jwt"
+	"github.com/Rumm1/eduhub-backend/internal/platform/password"
+)
+
+var (
+	ErrInvalidCredentials = errors.New("invalid email or password")
+	ErrUserInactive       = errors.New("user is inactive")
+)
 
 type Service struct {
-	repository *Repository
+	repo       *Repository
+	jwtManager *platformjwt.Manager
 }
 
-func NewService(repository *Repository) *Service {
-	if repository == nil {
-		repository = NewRepository()
+func NewService(repo *Repository, jwtManager *platformjwt.Manager) *Service {
+	return &Service{
+		repo:       repo,
+		jwtManager: jwtManager,
 	}
-	return &Service{repository: repository}
 }
 
-func (s *Service) List(ctx context.Context) ([]Entity, error) {
-	return s.repository.List(ctx)
-}
+func (s *Service) Login(ctx context.Context, req LoginRequest) (LoginResponse, error) {
+	email := strings.ToLower(strings.TrimSpace(req.Email))
+	if email == "" || req.Password == "" {
+		return LoginResponse{}, ErrInvalidCredentials
+	}
 
-func (s *Service) Get(ctx context.Context, id string) (Entity, error) {
-	return s.repository.Get(ctx, id)
-}
+	accessData, err := s.repo.GetUserAccessData(ctx, email)
+	if err != nil {
+		return LoginResponse{}, ErrInvalidCredentials
+	}
 
-func (s *Service) Create(ctx context.Context, request CreateRequest) (Entity, error) {
-	return s.repository.Create(ctx, request)
-}
+	if accessData.User.Status != "active" {
+		return LoginResponse{}, ErrUserInactive
+	}
 
-func (s *Service) Update(ctx context.Context, id string, request UpdateRequest) (Entity, error) {
-	return s.repository.Update(ctx, id, request)
-}
+	if !password.Compare(accessData.User.PasswordHash, req.Password) {
+		return LoginResponse{}, ErrInvalidCredentials
+	}
 
-func (s *Service) Delete(ctx context.Context, id string) error {
-	return s.repository.Delete(ctx, id)
+	accessToken, err := s.jwtManager.GenerateAccessToken(platformjwt.AccessTokenPayload{
+		UserID:         accessData.User.ID,
+		OrganizationID: accessData.User.OrganizationID,
+		Roles:          accessData.Roles,
+		Permissions:    accessData.Permissions,
+		BranchIDs:      accessData.BranchIDs,
+	})
+	if err != nil {
+		return LoginResponse{}, err
+	}
+
+	var organizationID *string
+	if accessData.User.OrganizationID != nil {
+		value := accessData.User.OrganizationID.String()
+		organizationID = &value
+	}
+
+	branchIDs := make([]string, 0, len(accessData.BranchIDs))
+	for _, id := range accessData.BranchIDs {
+		branchIDs = append(branchIDs, id.String())
+	}
+
+	return LoginResponse{
+		AccessToken: accessToken,
+		TokenType:   "Bearer",
+		User: UserResponse{
+			ID:             accessData.User.ID.String(),
+			OrganizationID: organizationID,
+			Email:          accessData.User.Email,
+			FullName:       accessData.User.FullName,
+			Roles:          accessData.Roles,
+			Permissions:    accessData.Permissions,
+			BranchIDs:      branchIDs,
+		},
+	}, nil
 }
