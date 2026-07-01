@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Rumm1/eduhub-backend/internal/middleware"
+	attendancemodule "github.com/Rumm1/eduhub-backend/internal/modules/attendance"
 	authmodule "github.com/Rumm1/eduhub-backend/internal/modules/auth"
 	branchmodule "github.com/Rumm1/eduhub-backend/internal/modules/branch"
 	groupmodule "github.com/Rumm1/eduhub-backend/internal/modules/group"
@@ -65,6 +66,10 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 	lessonRepository := lessonmodule.NewRepository(db)
 	lessonService := lessonmodule.NewService(lessonRepository)
 	lessonHandler := lessonmodule.NewHandler(lessonService)
+
+	attendanceRepository := attendancemodule.NewRepository(db)
+	attendanceService := attendancemodule.NewService(attendanceRepository)
+	attendanceHandler := attendancemodule.NewHandler(attendanceService)
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		response.Message(w, http.StatusOK, "EduHub backend is running")
@@ -157,6 +162,13 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 			r.Use(middleware.RequireTenant)
 
 			lessonmodule.RegisterRoutes(r, lessonHandler)
+		})
+
+		r.Route("/attendance", func(r chi.Router) {
+			r.Use(middleware.Auth(jwtManager))
+			r.Use(middleware.RequireTenant)
+
+			attendancemodule.RegisterRoutes(r, attendanceHandler)
 		})
 	})
 

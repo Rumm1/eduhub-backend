@@ -1,0 +1,4 @@
+ALTER TABLE attendance
+DROP COLUMN IF EXISTS marked_at,
+DROP COLUMN IF EXISTS marked_by,
+DROP COLUMN IF EXISTS reason;

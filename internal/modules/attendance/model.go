@@ -1,10 +1,15 @@
 package attendance
 
-import "time"
+import "github.com/google/uuid"
 
-type Entity struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+type Attendance struct {
+	ID              string
+	LessonID        uuid.UUID
+	StudentID       uuid.UUID
+	StudentFullName string
+	Status          string
+	Reason          string
+	Comment         string
+	MarkedBy        string
+	MarkedAt        string
 }
