@@ -1,10 +1,25 @@
 package student
 
-import "time"
+import "github.com/google/uuid"
 
-type Entity struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+type Student struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	BranchID       uuid.UUID
+	FullName       string
+	Phone          string
+	BirthDate      string
+	Gender         string
+	Status         string
+	Source         string
+	Notes          string
+}
+
+type Parent struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	FullName       string
+	Phone          string
+	Email          string
+	Relation       string
 }
