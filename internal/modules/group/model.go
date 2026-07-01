@@ -1,10 +1,26 @@
 package group
 
-import "time"
+import "github.com/google/uuid"
 
-type Entity struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+type Group struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	BranchID       uuid.UUID
+	SubjectID      uuid.UUID
+	TeacherID      string
+	Name           string
+	Level          string
+	Status         string
+	MaxStudents    int
+	StartDate      string
+	EndDate        string
+	StudentsCount  int
+}
+
+type GroupStudent struct {
+	StudentID uuid.UUID
+	FullName  string
+	Phone     string
+	Status    string
+	JoinedAt  string
 }
