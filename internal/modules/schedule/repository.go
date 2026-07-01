@@ -195,20 +195,22 @@ WHERE s.id = $1
 
 		err = tx.QueryRow(ctx, `
 INSERT INTO lessons (
-id,
-organization_id,
-branch_id,
-group_id,
-teacher_id,
-subject_id,
-schedule_id,
-lesson_date,
-start_time,
-end_time,
-topic,
-status
+	id,
+	organization_id,
+	branch_id,
+	group_id,
+	teacher_id,
+	planned_teacher_id,
+	actual_teacher_id,
+	subject_id,
+	schedule_id,
+	lesson_date,
+	start_time,
+	end_time,
+	topic,
+	status
 )
-VALUES ($1, $2, $3, $4, $5::uuid, $6, $7, $8::date, $9::time, $10::time, $11, 'planned')
+VALUES ($1, $2, $3, $4, $5::uuid, $5::uuid, $5::uuid, $6, $7, $8::date, $9::time, $10::time, $11, 'planned')
 ON CONFLICT (schedule_id, lesson_date) WHERE schedule_id IS NOT NULL
 DO NOTHING
 RETURNING
