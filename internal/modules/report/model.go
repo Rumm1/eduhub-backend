@@ -63,3 +63,28 @@ type PaymentReportItem struct {
 	Status        string
 	Comment       string
 }
+
+type StudentBalancesReport struct {
+	Period              string
+	TotalStudents       int
+	PaidCount           int
+	PartialCount        int
+	UnpaidCount         int
+	TotalExpectedAmount string
+	TotalPaidAmount     string
+	TotalDebtAmount     string
+	Items               []StudentBalanceItem
+}
+
+type StudentBalanceItem struct {
+	StudentID     string
+	StudentName   string
+	GroupID       string
+	GroupName     string
+	BranchID      string
+	BranchName    string
+	MonthlyPrice  string
+	PaidAmount    string
+	DebtAmount    string
+	PaymentStatus string
+}

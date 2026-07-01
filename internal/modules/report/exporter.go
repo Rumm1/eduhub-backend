@@ -168,6 +168,78 @@ func BuildPaymentsReportXLSX(report PaymentsReportResponse, langRaw string) ([]b
 	return writeWorkbook(file, filename)
 }
 
+func BuildStudentBalancesReportXLSX(report StudentBalancesReportResponse, langRaw string) ([]byte, string, error) {
+	lang := normalizeExportLang(langRaw)
+	t := exportTranslations(lang)
+
+	file := excelize.NewFile()
+
+	sheetName := t["student_balances_sheet"]
+	defaultSheet := file.GetSheetName(0)
+	file.SetSheetName(defaultSheet, sheetName)
+
+	file.SetCellValue(sheetName, "A1", t["student_balances_report"])
+	file.SetCellValue(sheetName, "A2", t["period"])
+	file.SetCellValue(sheetName, "B2", report.Period)
+
+	file.SetCellValue(sheetName, "A4", t["total_students"])
+	file.SetCellValue(sheetName, "B4", report.TotalStudents)
+	file.SetCellValue(sheetName, "C4", t["paid"])
+	file.SetCellValue(sheetName, "D4", report.PaidCount)
+	file.SetCellValue(sheetName, "E4", t["partial"])
+	file.SetCellValue(sheetName, "F4", report.PartialCount)
+	file.SetCellValue(sheetName, "G4", t["unpaid"])
+	file.SetCellValue(sheetName, "H4", report.UnpaidCount)
+
+	file.SetCellValue(sheetName, "A5", t["total_expected_amount"])
+	file.SetCellValue(sheetName, "B5", report.TotalExpectedAmount)
+	file.SetCellValue(sheetName, "C5", t["total_paid_amount"])
+	file.SetCellValue(sheetName, "D5", report.TotalPaidAmount)
+	file.SetCellValue(sheetName, "E5", t["total_debt_amount"])
+	file.SetCellValue(sheetName, "F5", report.TotalDebtAmount)
+
+	headers := []string{
+		t["student"],
+		t["group"],
+		t["branch"],
+		t["monthly_price"],
+		t["paid_amount"],
+		t["debt_amount"],
+		t["status"],
+	}
+
+	headerRow := 7
+	writeHeaders(file, sheetName, headers, headerRow)
+
+	for rowIndex, item := range report.Items {
+		row := headerRow + rowIndex + 1
+
+		values := []interface{}{
+			item.StudentName,
+			item.GroupName,
+			item.BranchName,
+			item.MonthlyPrice,
+			item.PaidAmount,
+			item.DebtAmount,
+			translateValue(lang, item.PaymentStatus),
+		}
+
+		writeRow(file, sheetName, row, values)
+	}
+
+	autoWidth(file, sheetName, len(headers))
+
+	file.SetColWidth(sheetName, "A", "C", 26)
+	file.SetColWidth(sheetName, "D", "F", 18)
+
+	styleHeader(file, sheetName, "A1", "A1")
+	styleHeader(file, sheetName, "A7", "G7")
+
+	filename := fmt.Sprintf("student_balances_%s_%s.xlsx", lang, report.Period)
+
+	return writeWorkbook(file, filename)
+}
+
 func normalizeExportLang(langRaw string) string {
 	lang := strings.ToLower(strings.TrimSpace(langRaw))
 
@@ -188,47 +260,59 @@ func exportTranslations(lang string) map[string]string {
 	case "kk":
 		return map[string]string{
 			"teacher_schedule_sheet":  "Кесте",
-			"teacher_schedule_report": "О?ытушы кестесі есебі",
-			"payments_sheet":          "Т?лемдер",
-			"payments_report":         "Т?лемдер есебі",
+			"teacher_schedule_report": "Оқытушы кестесі есебі",
+			"payments_sheet":          "Төлемдер",
+			"payments_report":         "Төлемдер есебі",
 
 			"from": "Бастап",
 			"to":   "Дейін",
 
-			"total_lessons":  "Барлы? саба?тар",
-			"actual_lessons": "На?ты саба?тар",
-			"planned_only":   "Тек жоспарлан?ан",
+			"total_lessons":  "Барлық сабақтар",
+			"actual_lessons": "Нақты сабақтар",
+			"planned_only":   "Тек жоспарланған",
 			"substitutions":  "Ауыстырулар",
-			"actual_hours":   "На?ты са?аттар",
+			"actual_hours":   "Нақты сағаттар",
 
-			"date":            "К?ні",
+			"date":            "Күні",
 			"start":           "Басталуы",
 			"end":             "Ая?талуы",
-			"hours":           "Са?ат",
+			"hours":           "Сағат",
 			"group":           "Топ",
 			"branch":          "Филиал",
-			"subject":         "П?н",
-			"topic":           "Та?ырып",
+			"subject":         "Пән",
+			"topic":           "Тақырып",
 			"status":          "Статус",
-			"planned_teacher": "Жоспарлан?ан о?ытушы",
-			"actual_teacher":  "На?ты о?ытушы",
+			"planned_teacher": "Жоспарланған мұғалім",
+			"actual_teacher":  "Нақты мұғалім",
 			"substitution":    "Ауыстыру",
-			"role":            "Р?лі",
+			"role":            "Рөлі",
 			"reason":          "Себебі",
 
-			"total_payments": "Барлы? т?лемдер",
+			"total_payments": "Барлық төлемдер",
 			"total_amount":   "Жалпы сома",
-			"paid":           "Т?ленді",
-			"pending":        "К?туде",
-			"refunded":       "?айтарылды",
+			"paid":           "Төленді",
+			"pending":        "Күтуде",
+			"refunded":       "Қайтарылды",
 			"cancelled":      "Болдырылмады",
 
-			"payment_date":   "Т?лем к?ні",
-			"payment_period": "Т?лем кезе?і",
-			"student":        "О?ушы",
-			"amount":         "Сома",
-			"method":         "?діс",
-			"comment":        "Пікір",
+			"payment_date":            "Төлем күні",
+			"payment_period":          "Төлем кезеңі",
+			"student":                 "Оқушы",
+			"amount":                  "Сомасы",
+			"method":                  "Әдіс",
+			"comment":                 "Пікір",
+			"student_balances_sheet":  "Қарыздар",
+			"student_balances_report": "Оқушылар балансы есебі",
+			"period":                  "Кезең",
+			"total_students":          "Барлық оқушылар",
+			"partial":                 "Жартылай",
+			"unpaid":                  "Төленбеген",
+			"total_expected_amount":   "Күтілетін жалпы сома",
+			"total_paid_amount":       "Төленген жалпы сома",
+			"total_debt_amount":       "Жалпы қарыз",
+			"monthly_price":           "Айлық баға",
+			"paid_amount":             "Төленген сома",
+			"debt_amount":             "Қарыз сомасы",
 		}
 	case "en":
 		return map[string]string{
@@ -268,12 +352,24 @@ func exportTranslations(lang string) map[string]string {
 			"refunded":       "Refunded",
 			"cancelled":      "Cancelled",
 
-			"payment_date":   "Payment Date",
-			"payment_period": "Payment Period",
-			"student":        "Student",
-			"amount":         "Amount",
-			"method":         "Method",
-			"comment":        "Comment",
+			"payment_date":            "Payment Date",
+			"payment_period":          "Payment Period",
+			"student":                 "Student",
+			"amount":                  "Amount",
+			"method":                  "Method",
+			"comment":                 "Comment",
+			"student_balances_sheet":  "Balances",
+			"student_balances_report": "Student Balances Report",
+			"period":                  "Period",
+			"total_students":          "Total students",
+			"partial":                 "Partial",
+			"unpaid":                  "Unpaid",
+			"total_expected_amount":   "Total expected amount",
+			"total_paid_amount":       "Total paid amount",
+			"total_debt_amount":       "Total debt amount",
+			"monthly_price":           "Monthly price",
+			"paid_amount":             "Paid amount",
+			"debt_amount":             "Debt amount",
 		}
 	default:
 		return map[string]string{
@@ -313,12 +409,24 @@ func exportTranslations(lang string) map[string]string {
 			"refunded":       "Возвращено",
 			"cancelled":      "Отменено",
 
-			"payment_date":   "Дата оплаты",
-			"payment_period": "Период оплаты",
-			"student":        "Ученик",
-			"amount":         "Сумма",
-			"method":         "Метод",
-			"comment":        "Комментарий",
+			"payment_date":            "Дата оплаты",
+			"payment_period":          "Период оплаты",
+			"student":                 "Ученик",
+			"amount":                  "Сумма",
+			"method":                  "Метод",
+			"comment":                 "Комментарий",
+			"student_balances_sheet":  "Долги",
+			"student_balances_report": "Отчёт по балансам учеников",
+			"period":                  "Период",
+			"total_students":          "Всего учеников",
+			"partial":                 "Частично",
+			"unpaid":                  "Не оплачено",
+			"total_expected_amount":   "Ожидаемая сумма",
+			"total_paid_amount":       "Оплаченная сумма",
+			"total_debt_amount":       "Общий долг",
+			"monthly_price":           "Месячная цена",
+			"paid_amount":             "Оплачено",
+			"debt_amount":             "Долг",
 		}
 	}
 }
@@ -354,6 +462,8 @@ func translateValue(lang string, valueRaw string) string {
 
 	translations := map[string]map[string]string{
 		"ru": {
+			"partial":       "Частично",
+			"unpaid":        "Не оплачено",
 			"paid":          "Оплачено",
 			"pending":       "Ожидает",
 			"cancelled":     "Отменено",
@@ -369,6 +479,8 @@ func translateValue(lang string, valueRaw string) string {
 			"bank_transfer": "Банковский перевод",
 		},
 		"kk": {
+			"partial":       "Жартылай",
+			"unpaid":        "Төленбеген",
 			"paid":          "Т?ленді",
 			"pending":       "К?туде",
 			"cancelled":     "Болдырылмады",
@@ -384,6 +496,8 @@ func translateValue(lang string, valueRaw string) string {
 			"bank_transfer": "Банк аударымы",
 		},
 		"en": {
+			"partial":       "Partial",
+			"unpaid":        "Unpaid",
 			"paid":          "Paid",
 			"pending":       "Pending",
 			"cancelled":     "Cancelled",

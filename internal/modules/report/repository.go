@@ -313,3 +313,114 @@ WHERE ` + whereSQL
 func itoa(value int) string {
 	return strconv.Itoa(value)
 }
+
+func (r *Repository) GetStudentBalancesReport(
+	ctx context.Context,
+	organizationID uuid.UUID,
+	periodStart string,
+	branchID string,
+	groupID string,
+	studentID string,
+) (StudentBalancesReport, error) {
+	whereParts := []string{
+		"s.organization_id = $1",
+		"g.organization_id = $1",
+	}
+
+	args := []interface{}{organizationID, periodStart}
+	argIndex := 3
+
+	if branchID != "" {
+		whereParts = append(whereParts, "g.branch_id = $"+itoa(argIndex)+"::uuid")
+		args = append(args, branchID)
+		argIndex++
+	}
+
+	if groupID != "" {
+		whereParts = append(whereParts, "g.id = $"+itoa(argIndex)+"::uuid")
+		args = append(args, groupID)
+		argIndex++
+	}
+
+	if studentID != "" {
+		whereParts = append(whereParts, "s.id = $"+itoa(argIndex)+"::uuid")
+		args = append(args, studentID)
+		argIndex++
+	}
+
+	whereSQL := strings.Join(whereParts, " AND ")
+
+	query := `
+		WITH payment_summary AS (
+			SELECT
+				p.student_id,
+				p.group_id,
+				COALESCE(SUM(p.amount) FILTER (WHERE p.status = 'paid'), 0) AS paid_amount
+			FROM payments p
+			WHERE p.organization_id = $1
+			  AND p.payment_period = $2::date
+			GROUP BY p.student_id, p.group_id
+		)
+		SELECT
+			s.id::text,
+			s.full_name,
+			g.id::text,
+			g.name,
+			b.id::text,
+			b.name,
+			COALESCE(g.monthly_price, 0)::text AS monthly_price,
+			COALESCE(ps.paid_amount, 0)::text AS paid_amount,
+			GREATEST(COALESCE(g.monthly_price, 0) - COALESCE(ps.paid_amount, 0), 0)::text AS debt_amount,
+			CASE
+				WHEN COALESCE(ps.paid_amount, 0) >= COALESCE(g.monthly_price, 0)
+					AND COALESCE(g.monthly_price, 0) > 0 THEN 'paid'
+				WHEN COALESCE(ps.paid_amount, 0) > 0 THEN 'partial'
+				ELSE 'unpaid'
+			END AS payment_status
+		FROM group_students gs
+		JOIN students s ON s.id = gs.student_id
+		JOIN groups g ON g.id = gs.group_id
+		JOIN branches b ON b.id = g.branch_id
+		LEFT JOIN payment_summary ps ON ps.student_id = s.id AND ps.group_id = g.id
+		WHERE ` + whereSQL + `
+		ORDER BY b.name ASC, g.name ASC, s.full_name ASC
+	`
+
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		return StudentBalancesReport{}, err
+	}
+	defer rows.Close()
+
+	items := make([]StudentBalanceItem, 0)
+
+	for rows.Next() {
+		var item StudentBalanceItem
+
+		if err := rows.Scan(
+			&item.StudentID,
+			&item.StudentName,
+			&item.GroupID,
+			&item.GroupName,
+			&item.BranchID,
+			&item.BranchName,
+			&item.MonthlyPrice,
+			&item.PaidAmount,
+			&item.DebtAmount,
+			&item.PaymentStatus,
+		); err != nil {
+			return StudentBalancesReport{}, err
+		}
+
+		items = append(items, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return StudentBalancesReport{}, err
+	}
+
+	return StudentBalancesReport{
+		Period: periodStart[:7],
+		Items:  items,
+	}, nil
+}

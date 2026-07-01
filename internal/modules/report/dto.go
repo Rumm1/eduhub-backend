@@ -63,3 +63,28 @@ type PaymentsReportItem struct {
 	Status        string `json:"status"`
 	Comment       string `json:"comment,omitempty"`
 }
+
+type StudentBalancesReportResponse struct {
+	Period              string                     `json:"period"`
+	TotalStudents       int                        `json:"total_students"`
+	PaidCount           int                        `json:"paid_count"`
+	PartialCount        int                        `json:"partial_count"`
+	UnpaidCount         int                        `json:"unpaid_count"`
+	TotalExpectedAmount string                     `json:"total_expected_amount"`
+	TotalPaidAmount     string                     `json:"total_paid_amount"`
+	TotalDebtAmount     string                     `json:"total_debt_amount"`
+	Items               []StudentBalanceReportItem `json:"items"`
+}
+
+type StudentBalanceReportItem struct {
+	StudentID     string `json:"student_id"`
+	StudentName   string `json:"student_name"`
+	GroupID       string `json:"group_id"`
+	GroupName     string `json:"group_name"`
+	BranchID      string `json:"branch_id"`
+	BranchName    string `json:"branch_name"`
+	MonthlyPrice  string `json:"monthly_price"`
+	PaidAmount    string `json:"paid_amount"`
+	DebtAmount    string `json:"debt_amount"`
+	PaymentStatus string `json:"payment_status"`
+}

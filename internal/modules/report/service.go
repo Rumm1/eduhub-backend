@@ -3,6 +3,8 @@ package report
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -25,6 +27,9 @@ var (
 	ErrGroupIDInvalid       = errors.New("group id is invalid")
 	ErrStudentIDInvalid     = errors.New("student id is invalid")
 	ErrPaymentStatusInvalid = errors.New("payment status is invalid")
+	ErrPeriodRequired       = errors.New("period is required")
+	ErrPeriodInvalid        = errors.New("period is invalid")
+	ErrBalanceStatusInvalid = errors.New("balance status is invalid")
 )
 
 type Service struct {
@@ -140,6 +145,72 @@ func (s *Service) GetPaymentsReport(
 	return buildPaymentsReportResponse(report), nil
 }
 
+func (s *Service) GetStudentBalancesReport(
+	ctx context.Context,
+	periodRaw string,
+	branchIDRaw string,
+	groupIDRaw string,
+	studentIDRaw string,
+	statusRaw string,
+) (StudentBalancesReportResponse, error) {
+	currentUser, ok := usercontext.GetUser(ctx)
+	if !ok || currentUser.OrganizationID == nil {
+		return StudentBalancesReportResponse{}, ErrTenantRequired
+	}
+
+	period := strings.TrimSpace(periodRaw)
+	if period == "" {
+		return StudentBalancesReportResponse{}, ErrPeriodRequired
+	}
+
+	periodDate, err := time.Parse("2006-01-02", period+"-01")
+	if err != nil {
+		return StudentBalancesReportResponse{}, ErrPeriodInvalid
+	}
+
+	periodStart := periodDate.Format("2006-01-02")
+
+	branchID := strings.TrimSpace(branchIDRaw)
+	if branchID != "" {
+		if _, err := uuid.Parse(branchID); err != nil {
+			return StudentBalancesReportResponse{}, ErrBranchIDInvalid
+		}
+	}
+
+	groupID := strings.TrimSpace(groupIDRaw)
+	if groupID != "" {
+		if _, err := uuid.Parse(groupID); err != nil {
+			return StudentBalancesReportResponse{}, ErrGroupIDInvalid
+		}
+	}
+
+	studentID := strings.TrimSpace(studentIDRaw)
+	if studentID != "" {
+		if _, err := uuid.Parse(studentID); err != nil {
+			return StudentBalancesReportResponse{}, ErrStudentIDInvalid
+		}
+	}
+
+	status := strings.ToLower(strings.TrimSpace(statusRaw))
+	if status != "" && !isValidBalanceStatus(status) {
+		return StudentBalancesReportResponse{}, ErrBalanceStatusInvalid
+	}
+
+	report, err := s.repo.GetStudentBalancesReport(
+		ctx,
+		*currentUser.OrganizationID,
+		periodStart,
+		branchID,
+		groupID,
+		studentID,
+	)
+	if err != nil {
+		return StudentBalancesReportResponse{}, err
+	}
+
+	return buildStudentBalancesReportResponse(report, status), nil
+}
+
 func validateDateRange(fromDateRaw string, toDateRaw string) (string, string, error) {
 	fromDate := strings.TrimSpace(fromDateRaw)
 	if fromDate == "" {
@@ -244,6 +315,61 @@ func buildPaymentsReportResponse(report PaymentsReport) PaymentsReportResponse {
 	}
 }
 
+func buildStudentBalancesReportResponse(report StudentBalancesReport, statusFilter string) StudentBalancesReportResponse {
+	items := make([]StudentBalanceReportItem, 0, len(report.Items))
+
+	totalExpected := 0.0
+	totalPaid := 0.0
+	totalDebt := 0.0
+	paidCount := 0
+	partialCount := 0
+	unpaidCount := 0
+
+	for _, item := range report.Items {
+		if statusFilter != "" && item.PaymentStatus != statusFilter {
+			continue
+		}
+
+		totalExpected += moneyToFloat(item.MonthlyPrice)
+		totalPaid += moneyToFloat(item.PaidAmount)
+		totalDebt += moneyToFloat(item.DebtAmount)
+
+		switch item.PaymentStatus {
+		case "paid":
+			paidCount++
+		case "partial":
+			partialCount++
+		case "unpaid":
+			unpaidCount++
+		}
+
+		items = append(items, StudentBalanceReportItem{
+			StudentID:     item.StudentID,
+			StudentName:   item.StudentName,
+			GroupID:       item.GroupID,
+			GroupName:     item.GroupName,
+			BranchID:      item.BranchID,
+			BranchName:    item.BranchName,
+			MonthlyPrice:  item.MonthlyPrice,
+			PaidAmount:    item.PaidAmount,
+			DebtAmount:    item.DebtAmount,
+			PaymentStatus: item.PaymentStatus,
+		})
+	}
+
+	return StudentBalancesReportResponse{
+		Period:              report.Period,
+		TotalStudents:       len(items),
+		PaidCount:           paidCount,
+		PartialCount:        partialCount,
+		UnpaidCount:         unpaidCount,
+		TotalExpectedAmount: formatMoney(totalExpected),
+		TotalPaidAmount:     formatMoney(totalPaid),
+		TotalDebtAmount:     formatMoney(totalDebt),
+		Items:               items,
+	}
+}
+
 func hasRole(roles []string, role string) bool {
 	for _, item := range roles {
 		if item == role {
@@ -261,4 +387,28 @@ func isValidPaymentStatus(status string) bool {
 	default:
 		return false
 	}
+}
+
+func isValidBalanceStatus(status string) bool {
+	switch status {
+	case "paid", "partial", "unpaid":
+		return true
+	default:
+		return false
+	}
+}
+
+func moneyToFloat(value string) float64 {
+	normalized := strings.ReplaceAll(strings.TrimSpace(value), ",", "")
+
+	result, err := strconv.ParseFloat(normalized, 64)
+	if err != nil {
+		return 0
+	}
+
+	return result
+}
+
+func formatMoney(value float64) string {
+	return fmt.Sprintf("%.2f", value)
 }
