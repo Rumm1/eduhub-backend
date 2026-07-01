@@ -13,6 +13,7 @@ import (
 	homeworkmodule "github.com/Rumm1/eduhub-backend/internal/modules/homework"
 	lessonmodule "github.com/Rumm1/eduhub-backend/internal/modules/lesson"
 	organizationmodule "github.com/Rumm1/eduhub-backend/internal/modules/organization"
+	paymentmodule "github.com/Rumm1/eduhub-backend/internal/modules/payment"
 	schedulemodule "github.com/Rumm1/eduhub-backend/internal/modules/schedule"
 	studentmodule "github.com/Rumm1/eduhub-backend/internal/modules/student"
 	subjectmodule "github.com/Rumm1/eduhub-backend/internal/modules/subject"
@@ -76,6 +77,10 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 	homeworkRepository := homeworkmodule.NewRepository(db)
 	homeworkService := homeworkmodule.NewService(homeworkRepository)
 	homeworkHandler := homeworkmodule.NewHandler(homeworkService)
+
+	paymentRepository := paymentmodule.NewRepository(db)
+	paymentService := paymentmodule.NewService(paymentRepository)
+	paymentHandler := paymentmodule.NewHandler(paymentService)
 
 	scheduleRepository := schedulemodule.NewRepository(db)
 	scheduleService := schedulemodule.NewService(scheduleRepository)
@@ -193,6 +198,13 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 			r.Use(middleware.RequireTenant)
 
 			schedulemodule.RegisterRoutes(r, scheduleHandler)
+		})
+
+		r.Route("/payments", func(r chi.Router) {
+			r.Use(middleware.Auth(jwtManager))
+			r.Use(middleware.RequireTenant)
+
+			paymentmodule.RegisterRoutes(r, paymentHandler)
 		})
 	})
 

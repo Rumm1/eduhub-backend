@@ -1,10 +1,16 @@
 package payment
 
-import "time"
+import "github.com/google/uuid"
 
-type Entity struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+type Payment struct {
+ID             uuid.UUID
+OrganizationID uuid.UUID
+BranchID       uuid.UUID
+StudentID      uuid.UUID
+GroupID        string
+Amount         string
+PaymentDate    string
+PaymentMethod  string
+Status         string
+Comment        string
 }
