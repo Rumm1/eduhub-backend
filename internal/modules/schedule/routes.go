@@ -8,4 +8,6 @@ import (
 func RegisterRoutes(r chi.Router, handler *Handler) {
 	r.With(middleware.RequirePermission("schedules.read")).Get("/", handler.List)
 	r.With(middleware.RequirePermission("schedules.create")).Post("/", handler.Create)
+
+	r.With(middleware.RequirePermission("schedules.update")).Post("/{scheduleID}/generate-lessons", handler.GenerateLessons)
 }
