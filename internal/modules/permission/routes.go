@@ -6,6 +6,6 @@ import (
 )
 
 func RegisterRoutes(r chi.Router, handler *Handler) {
-	r.With(middleware.RequirePermission("profiles.manage")).Get("/", handler.List)
-	r.With(middleware.RequirePermission("profiles.manage")).Get("/groups", handler.ListGroups)
+	r.With(middleware.RequirePermission("roles.read")).Get("/", handler.List)
+	r.With(middleware.RequirePermission("roles.read")).Get("/groups", handler.ListGroups)
 }

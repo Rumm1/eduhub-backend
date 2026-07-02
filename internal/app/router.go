@@ -181,9 +181,12 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 
 			profilemodule.RegisterRoutes(r, profileHandler)
 		})
+
 		r.Route("/roles", func(r chi.Router) {
 			r.Use(middleware.Auth(jwtManager))
 			r.Use(middleware.RequireTenant)
+
+			r.Use(rolemodule.RoleAuditMiddleware(auditService))
 
 			rolemodule.RegisterRoutes(r, roleHandler)
 		})
