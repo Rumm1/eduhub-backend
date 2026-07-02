@@ -191,6 +191,8 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 			r.Use(middleware.Auth(jwtManager))
 			r.Use(middleware.RequireTenant)
 
+			r.Use(lessonmodule.LessonAuditMiddleware(auditService))
+
 			lessonmodule.RegisterRoutes(r, lessonHandler)
 		})
 
