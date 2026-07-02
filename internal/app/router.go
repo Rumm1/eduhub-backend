@@ -16,6 +16,7 @@ import (
 	organizationmodule "github.com/Rumm1/eduhub-backend/internal/modules/organization"
 	paymentmodule "github.com/Rumm1/eduhub-backend/internal/modules/payment"
 	payrollmodule "github.com/Rumm1/eduhub-backend/internal/modules/payroll"
+	profilemodule "github.com/Rumm1/eduhub-backend/internal/modules/profile"
 	reportmodule "github.com/Rumm1/eduhub-backend/internal/modules/report"
 	schedulemodule "github.com/Rumm1/eduhub-backend/internal/modules/schedule"
 	studentmodule "github.com/Rumm1/eduhub-backend/internal/modules/student"
@@ -52,7 +53,9 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 	userRepository := usermodule.NewRepository(db)
 	userService := usermodule.NewService(userRepository)
 	userHandler := usermodule.NewHandler(userService)
-
+	profileRepository := profilemodule.NewRepository(db)
+	profileService := profilemodule.NewService(profileRepository)
+	profileHandler := profilemodule.NewHandler(profileService)
 	subjectRepository := subjectmodule.NewRepository(db)
 	subjectService := subjectmodule.NewService(subjectRepository)
 	subjectHandler := subjectmodule.NewHandler(subjectService)
@@ -157,6 +160,14 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 			r.Use(middleware.RequireTenant)
 
 			usermodule.RegisterRoutes(r, userHandler)
+			profilemodule.RegisterUserProfileRoutes(r, profileHandler)
+		})
+
+		r.Route("/profiles", func(r chi.Router) {
+			r.Use(middleware.Auth(jwtManager))
+			r.Use(middleware.RequireTenant)
+
+			profilemodule.RegisterRoutes(r, profileHandler)
 		})
 
 		r.Route("/subjects", func(r chi.Router) {
