@@ -10,5 +10,6 @@ func RegisterRoutes(r chi.Router, handler *Handler) {
 		r.Use(middleware.RequirePermission("dashboard.overview.read"))
 
 		r.Get("/insights/dashboard", handler.DashboardInsights)
+		r.Post("/chat", handler.Chat)
 	})
 }

@@ -20,3 +20,16 @@ type DashboardInsightsResponse struct {
 	Insights        []Insight                `json:"insights"`
 	Recommendations []string                 `json:"recommendations"`
 }
+
+type ChatRequest struct {
+	Message string `json:"message"`
+}
+
+type ChatResponse struct {
+	Provider         string                   `json:"provider"`
+	Intent           string                   `json:"intent"`
+	RiskLevel        string                   `json:"risk_level"`
+	Reply            string                   `json:"reply"`
+	SuggestedActions []string                 `json:"suggested_actions"`
+	Metrics          DashboardMetricsResponse `json:"metrics"`
+}

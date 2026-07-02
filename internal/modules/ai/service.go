@@ -3,16 +3,21 @@ package ai
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	usercontext "github.com/Rumm1/eduhub-backend/internal/shared/context"
 )
 
 type Service struct {
 	repository *Repository
+	provider   ChatProvider
 }
 
 func NewService(repository *Repository) *Service {
-	return &Service{repository: repository}
+	return &Service{
+		repository: repository,
+		provider:   NewRuleBasedProvider(),
+	}
 }
 
 func (s *Service) GetDashboardInsights(ctx context.Context) (DashboardInsightsResponse, error) {
@@ -36,6 +41,43 @@ func (s *Service) GetDashboardInsights(ctx context.Context) (DashboardInsightsRe
 		Metrics:         mapMetrics(metrics),
 		Insights:        insights,
 		Recommendations: recommendations,
+	}, nil
+}
+
+func (s *Service) Chat(ctx context.Context, request ChatRequest) (ChatResponse, error) {
+	message := strings.TrimSpace(request.Message)
+	if message == "" {
+		return ChatResponse{}, ErrChatMessageEmpty
+	}
+
+	currentUser, ok := usercontext.GetUser(ctx)
+	if !ok || currentUser.OrganizationID == nil {
+		return ChatResponse{}, ErrTenantRequired
+	}
+
+	metrics, err := s.repository.GetDashboardMetrics(ctx, *currentUser.OrganizationID, currentUser.UserID)
+	if err != nil {
+		return ChatResponse{}, err
+	}
+
+	riskLevel := calculateRiskLevel(metrics)
+
+	output, err := s.provider.GenerateChatReply(ctx, ChatInput{
+		Message:   message,
+		Metrics:   metrics,
+		RiskLevel: riskLevel,
+	})
+	if err != nil {
+		return ChatResponse{}, err
+	}
+
+	return ChatResponse{
+		Provider:         s.provider.Name(),
+		Intent:           output.Intent,
+		RiskLevel:        riskLevel,
+		Reply:            output.Reply,
+		SuggestedActions: output.SuggestedActions,
+		Metrics:          mapMetrics(metrics),
 	}, nil
 }
 
