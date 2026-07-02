@@ -1,0 +1,5 @@
+﻿ALTER TABLE users
+ADD COLUMN IF NOT EXISTS avatar_path TEXT;
+
+ALTER TABLE organizations
+ADD COLUMN IF NOT EXISTS logo_path TEXT;

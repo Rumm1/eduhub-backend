@@ -11,6 +11,7 @@ import (
 	auditmodule "github.com/Rumm1/eduhub-backend/internal/modules/audit"
 	authmodule "github.com/Rumm1/eduhub-backend/internal/modules/auth"
 	branchmodule "github.com/Rumm1/eduhub-backend/internal/modules/branch"
+	brandingmodule "github.com/Rumm1/eduhub-backend/internal/modules/branding"
 	dashboardmodule "github.com/Rumm1/eduhub-backend/internal/modules/dashboard"
 	filemodule "github.com/Rumm1/eduhub-backend/internal/modules/file"
 	groupmodule "github.com/Rumm1/eduhub-backend/internal/modules/group"
@@ -65,6 +66,10 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 	organizationRepository := organizationmodule.NewRepository(db)
 	organizationService := organizationmodule.NewService(organizationRepository)
 	organizationHandler := organizationmodule.NewHandler(organizationService)
+
+	brandingRepository := brandingmodule.NewRepository(db)
+	brandingService := brandingmodule.NewService(brandingRepository)
+	brandingHandler := brandingmodule.NewHandler(brandingService)
 
 	branchRepository := branchmodule.NewRepository(db)
 	branchService := branchmodule.NewService(branchRepository)
@@ -203,6 +208,13 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 			r.Use(middleware.RequireRole("SUPER_ADMIN"))
 
 			organizationmodule.RegisterPlatformRoutes(r, organizationHandler)
+		})
+
+		r.Route("/branding", func(r chi.Router) {
+			r.Use(middleware.Auth(jwtManager))
+			r.Use(middleware.RequireTenant)
+
+			brandingmodule.RegisterRoutes(r, brandingHandler)
 		})
 
 		r.Route("/branches", func(r chi.Router) {
