@@ -1,10 +1,15 @@
 package file
 
-import "time"
+import "github.com/google/uuid"
 
-type Entity struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+type File struct {
+	ID             uuid.UUID
+	OrganizationID uuid.UUID
+	UploadedBy     uuid.UUID
+	Folder         string
+	FileName       string
+	FilePath       string
+	MimeType       string
+	SizeBytes      int64
+	CreatedAt      string
 }

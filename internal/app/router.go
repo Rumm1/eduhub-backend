@@ -10,6 +10,7 @@ import (
 	auditmodule "github.com/Rumm1/eduhub-backend/internal/modules/audit"
 	authmodule "github.com/Rumm1/eduhub-backend/internal/modules/auth"
 	branchmodule "github.com/Rumm1/eduhub-backend/internal/modules/branch"
+	filemodule "github.com/Rumm1/eduhub-backend/internal/modules/file"
 	groupmodule "github.com/Rumm1/eduhub-backend/internal/modules/group"
 	homeworkmodule "github.com/Rumm1/eduhub-backend/internal/modules/homework"
 	lessonmodule "github.com/Rumm1/eduhub-backend/internal/modules/lesson"
@@ -89,6 +90,10 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 	studentService := studentmodule.NewService(studentRepository)
 	studentHandler := studentmodule.NewHandler(studentService)
 
+	fileRepository := filemodule.NewRepository(db)
+	fileService := filemodule.NewService(fileRepository)
+	fileHandler := filemodule.NewHandler(fileService)
+
 	groupRepository := groupmodule.NewRepository(db)
 	groupService := groupmodule.NewService(groupRepository)
 	groupHandler := groupmodule.NewHandler(groupService)
@@ -142,6 +147,8 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 
 		response.Message(w, http.StatusOK, "PostgreSQL is connected")
 	})
+
+	r.Handle("/uploads/*", http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads"))))
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -230,6 +237,13 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 			r.Use(middleware.RequireTenant)
 
 			studentmodule.RegisterRoutes(r, studentHandler)
+		})
+
+		r.Route("/files", func(r chi.Router) {
+			r.Use(middleware.Auth(jwtManager))
+			r.Use(middleware.RequireTenant)
+
+			filemodule.RegisterRoutes(r, fileHandler)
 		})
 
 		r.Route("/groups", func(r chi.Router) {
