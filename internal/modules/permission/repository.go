@@ -2,45 +2,55 @@ package permission
 
 import (
 	"context"
-	"errors"
-	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var ErrNotFound = errors.New("entity not found")
-
-type Repository struct{}
-
-func NewRepository() *Repository {
-	return &Repository{}
+type Repository struct {
+	db *pgxpool.Pool
 }
 
-func (r *Repository) List(ctx context.Context) ([]Entity, error) {
-	return []Entity{}, nil
+func NewRepository(db *pgxpool.Pool) *Repository {
+	return &Repository{db: db}
 }
 
-func (r *Repository) Get(ctx context.Context, id string) (Entity, error) {
-	if id == "" {
-		return Entity{}, ErrNotFound
+func (r *Repository) List(ctx context.Context) ([]Permission, error) {
+	rows, err := r.db.Query(ctx, `
+SELECT
+id,
+code,
+code AS name,
+COALESCE(description, '')
+FROM permissions
+ORDER BY code
+`)
+	if err != nil {
+		return nil, err
 	}
-	return Entity{ID: id, CreatedAt: time.Now(), UpdatedAt: time.Now()}, nil
-}
+	defer rows.Close()
 
-func (r *Repository) Create(ctx context.Context, request CreateRequest) (Entity, error) {
-	now := time.Now()
-	return Entity{ID: now.Format("20060102150405.000000000"), Name: request.Name, CreatedAt: now, UpdatedAt: now}, nil
-}
+	items := make([]Permission, 0)
 
-func (r *Repository) Update(ctx context.Context, id string, request UpdateRequest) (Entity, error) {
-	if id == "" {
-		return Entity{}, ErrNotFound
+	for rows.Next() {
+		var item Permission
+
+		if err := rows.Scan(
+			&item.ID,
+			&item.Code,
+			&item.Name,
+			&item.Description,
+		); err != nil {
+			return nil, err
+		}
+
+		item.Group = permissionGroupFromCode(item.Code)
+
+		items = append(items, item)
 	}
-	now := time.Now()
-	return Entity{ID: id, Name: request.Name, CreatedAt: now, UpdatedAt: now}, nil
-}
 
-func (r *Repository) Delete(ctx context.Context, id string) error {
-	if id == "" {
-		return ErrNotFound
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
-	return nil
+
+	return items, nil
 }

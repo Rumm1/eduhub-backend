@@ -1,10 +1,13 @@
 package role
 
-import "time"
+import "github.com/google/uuid"
 
-type Entity struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+type Role struct {
+	ID              uuid.UUID
+	OrganizationID  *uuid.UUID
+	Name            string
+	Code            string
+	Description     string
+	IsSystem        bool
+	PermissionCodes []string
 }

@@ -1,14 +1,33 @@
 package role
 
-type CreateRequest struct {
-	Name string `json:"name"`
+type CreateRoleRequest struct {
+	Name            string   `json:"name"`
+	Code            string   `json:"code"`
+	Description     string   `json:"description"`
+	PermissionCodes []string `json:"permission_codes"`
 }
 
-type UpdateRequest struct {
-	Name string `json:"name"`
+type UpdateRoleRequest struct {
+	Name        *string `json:"name"`
+	Code        *string `json:"code"`
+	Description *string `json:"description"`
 }
 
-type ListResponse struct {
-	Items []Entity `json:"items"`
-	Total int64    `json:"total"`
+type AddPermissionRequest struct {
+	PermissionCode string `json:"permission_code"`
+}
+
+type RoleResponse struct {
+	ID              string   `json:"id"`
+	OrganizationID  string   `json:"organization_id,omitempty"`
+	Name            string   `json:"name"`
+	Code            string   `json:"code"`
+	Description     string   `json:"description"`
+	IsSystem        bool     `json:"is_system"`
+	PermissionCodes []string `json:"permission_codes"`
+}
+
+type ListRolesResponse struct {
+	Items []RoleResponse `json:"items"`
+	Total int            `json:"total"`
 }

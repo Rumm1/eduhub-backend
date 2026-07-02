@@ -11,17 +11,25 @@ type Handler struct {
 }
 
 func NewHandler(service *Service) *Handler {
-	if service == nil {
-		service = NewService(nil)
-	}
 	return &Handler{service: service}
 }
 
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
-	items, err := h.service.List(r.Context())
+	result, err := h.service.List(r.Context())
 	if err != nil {
-		response.Error(w, http.StatusInternalServerError, err.Error())
+		response.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
 		return
 	}
-	response.OK(w, ListResponse{Items: items, Total: int64(len(items))})
+
+	response.Success(w, http.StatusOK, result)
+}
+
+func (h *Handler) ListGroups(w http.ResponseWriter, r *http.Request) {
+	result, err := h.service.ListGroups(r.Context())
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
+		return
+	}
+
+	response.Success(w, http.StatusOK, result)
 }

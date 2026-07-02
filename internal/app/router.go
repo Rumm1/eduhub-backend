@@ -16,8 +16,10 @@ import (
 	organizationmodule "github.com/Rumm1/eduhub-backend/internal/modules/organization"
 	paymentmodule "github.com/Rumm1/eduhub-backend/internal/modules/payment"
 	payrollmodule "github.com/Rumm1/eduhub-backend/internal/modules/payroll"
+	permissionmodule "github.com/Rumm1/eduhub-backend/internal/modules/permission"
 	profilemodule "github.com/Rumm1/eduhub-backend/internal/modules/profile"
 	reportmodule "github.com/Rumm1/eduhub-backend/internal/modules/report"
+	rolemodule "github.com/Rumm1/eduhub-backend/internal/modules/role"
 	schedulemodule "github.com/Rumm1/eduhub-backend/internal/modules/schedule"
 	studentmodule "github.com/Rumm1/eduhub-backend/internal/modules/student"
 	subjectmodule "github.com/Rumm1/eduhub-backend/internal/modules/subject"
@@ -53,9 +55,19 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 	userRepository := usermodule.NewRepository(db)
 	userService := usermodule.NewService(userRepository)
 	userHandler := usermodule.NewHandler(userService)
+
 	profileRepository := profilemodule.NewRepository(db)
 	profileService := profilemodule.NewService(profileRepository)
 	profileHandler := profilemodule.NewHandler(profileService)
+
+	roleRepository := rolemodule.NewRepository(db)
+	roleService := rolemodule.NewService(roleRepository)
+	roleHandler := rolemodule.NewHandler(roleService)
+
+	permissionRepository := permissionmodule.NewRepository(db)
+	permissionService := permissionmodule.NewService(permissionRepository)
+	permissionHandler := permissionmodule.NewHandler(permissionService)
+
 	subjectRepository := subjectmodule.NewRepository(db)
 	subjectService := subjectmodule.NewService(subjectRepository)
 	subjectHandler := subjectmodule.NewHandler(subjectService)
@@ -168,6 +180,19 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 			r.Use(middleware.RequireTenant)
 
 			profilemodule.RegisterRoutes(r, profileHandler)
+		})
+		r.Route("/roles", func(r chi.Router) {
+			r.Use(middleware.Auth(jwtManager))
+			r.Use(middleware.RequireTenant)
+
+			rolemodule.RegisterRoutes(r, roleHandler)
+		})
+
+		r.Route("/permissions", func(r chi.Router) {
+			r.Use(middleware.Auth(jwtManager))
+			r.Use(middleware.RequireTenant)
+
+			permissionmodule.RegisterRoutes(r, permissionHandler)
 		})
 
 		r.Route("/subjects", func(r chi.Router) {

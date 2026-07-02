@@ -1,10 +1,17 @@
 package permission
 
-import "time"
+import "github.com/google/uuid"
 
-type Entity struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+type Permission struct {
+	ID          uuid.UUID
+	Code        string
+	Name        string
+	Description string
+	Group       string
+}
+
+type PermissionGroup struct {
+	Name        string
+	Title       string
+	Permissions []Permission
 }
