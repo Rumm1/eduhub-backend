@@ -45,7 +45,7 @@ import (
 func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 	r := chi.NewRouter()
 
-	r.Use(middleware.CORS)
+	r.Use(middleware.Language)
 
 	r.Use(chimiddleware.RequestID)
 	r.Use(chimiddleware.RealIP)
