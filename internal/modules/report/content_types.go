@@ -1,3 +1,4 @@
 package report
 
 const xlsxContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+const docxContentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"

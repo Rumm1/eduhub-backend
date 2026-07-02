@@ -48,6 +48,15 @@ func (h *Handler) GetTeacherSchedule(w http.ResponseWriter, r *http.Request) {
 
 		writeBinaryFile(w, fileBytes, filename, pdfContentType)
 		return
+	case "docx":
+		fileBytes, filename, err := BuildTeacherScheduleDOCX(result, lang)
+		if err != nil {
+			response.Error(w, http.StatusInternalServerError, "EXPORT_ERROR", "Failed to export report")
+			return
+		}
+
+		writeBinaryFile(w, fileBytes, filename, docxContentType)
+		return
 	}
 
 	response.Success(w, http.StatusOK, result)
@@ -96,6 +105,15 @@ func (h *Handler) GetPaymentsReport(w http.ResponseWriter, r *http.Request) {
 
 		writeBinaryFile(w, fileBytes, filename, pdfContentType)
 		return
+	case "docx":
+		fileBytes, filename, err := BuildPaymentsReportDOCX(result, lang)
+		if err != nil {
+			response.Error(w, http.StatusInternalServerError, "EXPORT_ERROR", "Failed to export report")
+			return
+		}
+
+		writeBinaryFile(w, fileBytes, filename, docxContentType)
+		return
 	}
 
 	response.Success(w, http.StatusOK, result)
@@ -142,6 +160,15 @@ func (h *Handler) GetStudentBalancesReport(w http.ResponseWriter, r *http.Reques
 
 		writeBinaryFile(w, fileBytes, filename, pdfContentType)
 		return
+	case "docx":
+		fileBytes, filename, err := BuildStudentBalancesReportDOCX(result, lang)
+		if err != nil {
+			response.Error(w, http.StatusInternalServerError, "EXPORT_ERROR", "Failed to export report")
+			return
+		}
+
+		writeBinaryFile(w, fileBytes, filename, docxContentType)
+		return
 	}
 
 	response.Success(w, http.StatusOK, result)
@@ -185,6 +212,15 @@ func (h *Handler) GetPayrollReport(w http.ResponseWriter, r *http.Request) {
 		}
 
 		writeBinaryFile(w, fileBytes, filename, pdfContentType)
+		return
+	case "docx":
+		fileBytes, filename, err := BuildPayrollReportDOCX(result, lang)
+		if err != nil {
+			response.Error(w, http.StatusInternalServerError, "EXPORT_ERROR", "Failed to export report")
+			return
+		}
+
+		writeBinaryFile(w, fileBytes, filename, docxContentType)
 		return
 	}
 
