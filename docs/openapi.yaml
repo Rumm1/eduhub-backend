@@ -21,6 +21,7 @@ tags:
   - name: Auth
   - name: Dashboard
   - name: AI
+  - name: Branding
   - name: Branches
   - name: Subjects
   - name: Users
@@ -1071,6 +1072,97 @@ paths:
         "200":
           description: Audit logs returned or exported
 
+  /branding/current:
+    get:
+      tags: [Branding]
+      summary: Get current user and organization branding
+      description: Returns current user avatar and organization logo. If organization logo is empty, frontend should use default EduHub logo.
+      responses:
+        "200":
+          description: Branding data returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              example:
+                success: true
+                data:
+                  user_avatar_path: uploads/avatars/avatar.png
+                  user_avatar_url: /uploads/avatars/avatar.png
+                  organization_logo_path: uploads/logos/company-logo.png
+                  organization_logo_url: /uploads/logos/company-logo.png
+                  default_logo: false
+                  default_name: EduHub
+
+  /branding/me/avatar:
+    patch:
+      tags: [Branding]
+      summary: Update current user avatar
+      description: Upload image first using /files/upload with folder=avatars, then send returned file_path here.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [avatar_path]
+              properties:
+                avatar_path:
+                  type: string
+                  example: uploads/avatars/avatar.png
+      responses:
+        "200":
+          description: User avatar updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    delete:
+      tags: [Branding]
+      summary: Clear current user avatar
+      responses:
+        "200":
+          description: User avatar cleared
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /branding/organization/logo:
+    patch:
+      tags: [Branding]
+      summary: Update organization logo
+      description: Upload image first using /files/upload with folder=logos, then send returned file_path here.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [logo_path]
+              properties:
+                logo_path:
+                  type: string
+                  example: uploads/logos/company-logo.png
+      responses:
+        "200":
+          description: Organization logo updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    delete:
+      tags: [Branding]
+      summary: Clear organization logo
+      description: After clearing logo, frontend should use default EduHub logo.
+      responses:
+        "200":
+          description: Organization logo cleared
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
 components:
   securitySchemes:
     BearerAuth:
@@ -1235,3 +1327,4 @@ components:
           type: string
           format: email
           example: parent@example.com
+
