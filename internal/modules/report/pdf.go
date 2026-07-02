@@ -223,9 +223,9 @@ func BuildTeacherSchedulePDF(report TeacherScheduleReportResponse, langRaw strin
 			item.GroupName,
 			item.SubjectName,
 			item.Topic,
-			item.Status,
-			item.TeacherRoleInLesson,
-			fmt.Sprint(item.IsSubstitution),
+			translateValue(lang, item.Status),
+			translateValue(lang, item.TeacherRoleInLesson),
+			translateBool(lang, item.IsSubstitution),
 		})
 	}
 
@@ -269,8 +269,8 @@ func BuildPaymentsReportPDF(report PaymentsReportResponse, langRaw string) ([]by
 			item.GroupName,
 			item.BranchName,
 			fmt.Sprint(item.Amount),
-			item.PaymentMethod,
-			item.Status,
+			translateValue(lang, item.PaymentMethod),
+			translateValue(lang, item.Status),
 		})
 	}
 
@@ -314,7 +314,7 @@ func BuildStudentBalancesReportPDF(report StudentBalancesReportResponse, langRaw
 			fmt.Sprint(item.MonthlyPrice),
 			fmt.Sprint(item.PaidAmount),
 			fmt.Sprint(item.DebtAmount),
-			item.PaymentStatus,
+			translateValue(lang, item.PaymentStatus),
 		})
 	}
 
@@ -364,7 +364,7 @@ func BuildPayrollReportPDF(report PayrollReportResponse, langRaw string) ([]byte
 			fmt.Sprint(item.BonusAmount),
 			fmt.Sprint(item.PenaltyAmount),
 			fmt.Sprint(item.FinalAmount),
-			item.Status,
+			translateValue(lang, item.Status),
 		})
 	}
 

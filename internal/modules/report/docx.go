@@ -46,9 +46,9 @@ func BuildTeacherScheduleDOCX(report TeacherScheduleReportResponse, langRaw stri
 			item.GroupName,
 			item.SubjectName,
 			item.Topic,
-			item.Status,
-			item.TeacherRoleInLesson,
-			fmt.Sprint(item.IsSubstitution),
+			translateValue(lang, item.Status),
+			translateValue(lang, item.TeacherRoleInLesson),
+			translateBool(lang, item.IsSubstitution),
 		})
 	}
 
@@ -90,8 +90,8 @@ func BuildPaymentsReportDOCX(report PaymentsReportResponse, langRaw string) ([]b
 			item.GroupName,
 			item.BranchName,
 			fmt.Sprint(item.Amount),
-			item.PaymentMethod,
-			item.Status,
+			translateValue(lang, item.PaymentMethod),
+			translateValue(lang, item.Status),
 		})
 	}
 
@@ -133,7 +133,7 @@ func BuildStudentBalancesReportDOCX(report StudentBalancesReportResponse, langRa
 			fmt.Sprint(item.MonthlyPrice),
 			fmt.Sprint(item.PaidAmount),
 			fmt.Sprint(item.DebtAmount),
-			item.PaymentStatus,
+			translateValue(lang, item.PaymentStatus),
 		})
 	}
 
@@ -181,7 +181,7 @@ func BuildPayrollReportDOCX(report PayrollReportResponse, langRaw string) ([]byt
 			fmt.Sprint(item.BonusAmount),
 			fmt.Sprint(item.PenaltyAmount),
 			fmt.Sprint(item.FinalAmount),
-			item.Status,
+			translateValue(lang, item.Status),
 		})
 	}
 
