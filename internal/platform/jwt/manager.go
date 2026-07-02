@@ -17,6 +17,7 @@ type Manager struct {
 
 type AccessTokenPayload struct {
 	UserID         uuid.UUID
+	ProfileID      *uuid.UUID
 	OrganizationID *uuid.UUID
 	Roles          []string
 	Permissions    []string
@@ -39,6 +40,7 @@ func (m *Manager) GenerateAccessToken(payload AccessTokenPayload) (string, error
 
 	claims := Claims{
 		UserID:         payload.UserID,
+		ProfileID:      payload.ProfileID,
 		OrganizationID: payload.OrganizationID,
 		Roles:          payload.Roles,
 		Permissions:    payload.Permissions,

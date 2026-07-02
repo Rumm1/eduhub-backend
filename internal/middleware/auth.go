@@ -32,6 +32,7 @@ func Auth(jwtManager *platformjwt.Manager) func(http.Handler) http.Handler {
 
 			user := usercontext.UserContext{
 				UserID:         claims.UserID,
+				ProfileID:      claims.ProfileID,
 				OrganizationID: claims.OrganizationID,
 				Roles:          claims.Roles,
 				Permissions:    claims.Permissions,

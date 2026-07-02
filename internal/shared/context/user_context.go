@@ -12,6 +12,7 @@ const userContextKey contextKey = "user_context"
 
 type UserContext struct {
 	UserID         uuid.UUID
+	ProfileID      *uuid.UUID
 	OrganizationID *uuid.UUID
 	Roles          []string
 	Permissions    []string

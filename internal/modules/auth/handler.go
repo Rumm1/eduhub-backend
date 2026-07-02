@@ -26,14 +26,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 
 	result, err := h.service.Login(r.Context(), req)
 	if err != nil {
-		switch {
-		case errors.Is(err, ErrInvalidCredentials):
-			response.Error(w, http.StatusUnauthorized, "INVALID_CREDENTIALS", "Invalid email or password")
-		case errors.Is(err, ErrUserInactive):
-			response.Error(w, http.StatusForbidden, "USER_INACTIVE", "User is inactive")
-		default:
-			response.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
-		}
+		writeAuthError(w, err)
 		return
 	}
 
@@ -43,9 +36,43 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 	result, err := h.service.Me(r.Context())
 	if err != nil {
-		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "Unauthorized")
+		writeAuthError(w, err)
 		return
 	}
 
 	response.Success(w, http.StatusOK, result)
+}
+
+func (h *Handler) SwitchProfile(w http.ResponseWriter, r *http.Request) {
+	var req SwitchProfileRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "INVALID_JSON", "Invalid request body")
+		return
+	}
+
+	result, err := h.service.SwitchProfile(r.Context(), req)
+	if err != nil {
+		writeAuthError(w, err)
+		return
+	}
+
+	response.Success(w, http.StatusOK, result)
+}
+
+func writeAuthError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, ErrInvalidCredentials):
+		response.Error(w, http.StatusUnauthorized, "INVALID_CREDENTIALS", "Invalid email or password")
+	case errors.Is(err, ErrUserInactive):
+		response.Error(w, http.StatusForbidden, "USER_INACTIVE", "User is inactive")
+	case errors.Is(err, ErrProfileInactive):
+		response.Error(w, http.StatusForbidden, "PROFILE_INACTIVE", "Profile is inactive")
+	case errors.Is(err, ErrProfileIDInvalid):
+		response.Error(w, http.StatusBadRequest, "PROFILE_ID_INVALID", "Profile id is invalid")
+	case errors.Is(err, ErrUserContextMissing):
+		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "Unauthorized")
+	default:
+		response.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
+	}
 }

@@ -7,6 +7,7 @@ import (
 
 type Claims struct {
 	UserID         uuid.UUID   `json:"user_id"`
+	ProfileID      *uuid.UUID  `json:"profile_id,omitempty"`
 	OrganizationID *uuid.UUID  `json:"organization_id,omitempty"`
 	Roles          []string    `json:"roles"`
 	Permissions    []string    `json:"permissions"`
