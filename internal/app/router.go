@@ -238,6 +238,8 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 			r.Use(middleware.Auth(jwtManager))
 			r.Use(middleware.RequireTenant)
 
+			r.Use(reportmodule.ReportAuditMiddleware(auditService))
+
 			reportmodule.RegisterRoutes(r, reportHandler)
 		})
 		r.Route("/audit-logs", func(r chi.Router) {
