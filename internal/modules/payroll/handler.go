@@ -1,7 +1,6 @@
 package payroll
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -36,35 +35,7 @@ func (h *Handler) CreatePeriod(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writePayrollAuditLog(
-		r,
-		h.auditService,
-		"payroll.period_created",
-		result.ID,
-		"Payroll period created",
-		map[string]interface{}{
-			"period_id": result.ID,
-			"month":     result.Month,
-			"year":      result.Year,
-		},
-	)
-
 	response.Success(w, http.StatusCreated, result)
-}
-
-func writePayrollAuditLog(r *http.Request, auditService AuditService, event, resourceID, message string, details map[string]interface{}) {
-	if auditService == nil {
-		return
-	}
-
-	// If AuditService implements a Log method with this signature, call it.
-	type logger interface {
-		Log(ctx context.Context, event, resourceID, message string, details map[string]interface{}) error
-	}
-
-	if l, ok := auditService.(logger); ok {
-		_ = l.Log(r.Context(), event, resourceID, message, details)
-	}
 }
 
 func (h *Handler) GenerateForPeriod(w http.ResponseWriter, r *http.Request) {
