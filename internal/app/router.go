@@ -56,12 +56,12 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 	userService := usermodule.NewService(userRepository)
 	userHandler := usermodule.NewHandler(userService)
 
-	profileRepository := profilemodule.NewRepository(db)
-	profileService := profilemodule.NewService(profileRepository)
-	profileHandler := profilemodule.NewHandler(profileService)
-
 	auditRepository := auditmodule.NewRepository(db)
 	auditService := auditmodule.NewService(auditRepository)
+
+	profileRepository := profilemodule.NewRepository(db)
+	profileService := profilemodule.NewService(profileRepository)
+	profileHandler := profilemodule.NewHandler(profileService, auditService)
 
 	roleRepository := rolemodule.NewRepository(db)
 	roleService := rolemodule.NewService(roleRepository)
@@ -179,6 +179,8 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 		r.Route("/profiles", func(r chi.Router) {
 			r.Use(middleware.Auth(jwtManager))
 			r.Use(middleware.RequireTenant)
+
+			r.Use(profilemodule.ProfileAuditMiddleware(auditService))
 
 			profilemodule.RegisterRoutes(r, profileHandler)
 		})
