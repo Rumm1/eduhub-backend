@@ -14,6 +14,7 @@ import (
 	filemodule "github.com/Rumm1/eduhub-backend/internal/modules/file"
 	groupmodule "github.com/Rumm1/eduhub-backend/internal/modules/group"
 	homeworkmodule "github.com/Rumm1/eduhub-backend/internal/modules/homework"
+	importermodule "github.com/Rumm1/eduhub-backend/internal/modules/importer"
 	lessonmodule "github.com/Rumm1/eduhub-backend/internal/modules/lesson"
 	notificationmodule "github.com/Rumm1/eduhub-backend/internal/modules/notification"
 	organizationmodule "github.com/Rumm1/eduhub-backend/internal/modules/organization"
@@ -116,6 +117,10 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 	homeworkRepository := homeworkmodule.NewRepository(db)
 	homeworkService := homeworkmodule.NewService(homeworkRepository)
 	homeworkHandler := homeworkmodule.NewHandler(homeworkService)
+
+	importerRepository := importermodule.NewRepository(db)
+	importerService := importermodule.NewService(importerRepository)
+	importerHandler := importermodule.NewHandler(importerService)
 
 	parentRepository := parentmodule.NewRepository(db)
 	parentService := parentmodule.NewService(parentRepository)
@@ -293,6 +298,13 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 			r.Use(middleware.RequireTenant)
 
 			schedulemodule.RegisterRoutes(r, scheduleHandler)
+		})
+
+		r.Route("/imports", func(r chi.Router) {
+			r.Use(middleware.Auth(jwtManager))
+			r.Use(middleware.RequireTenant)
+
+			importermodule.RegisterRoutes(r, importerHandler)
 		})
 
 		r.Route("/notifications", func(r chi.Router) {

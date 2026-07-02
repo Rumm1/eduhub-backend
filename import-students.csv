@@ -1,0 +1,2 @@
+﻿student_full_name,student_phone,parent_full_name,parent_phone,parent_email,group_name,relation
+Import Test Student,+77001112233,Import Test Parent,+77001112244,import.parent@example.com,Programming Group A,father
