@@ -60,9 +60,12 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 	profileService := profilemodule.NewService(profileRepository)
 	profileHandler := profilemodule.NewHandler(profileService)
 
+	auditRepository := auditmodule.NewRepository(db)
+	auditService := auditmodule.NewService(auditRepository)
+
 	roleRepository := rolemodule.NewRepository(db)
 	roleService := rolemodule.NewService(roleRepository)
-	roleHandler := rolemodule.NewHandler(roleService)
+	roleHandler := rolemodule.NewHandler(roleService, auditService)
 
 	permissionRepository := permissionmodule.NewRepository(db)
 	permissionService := permissionmodule.NewService(permissionRepository)
@@ -88,8 +91,6 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 	lessonService := lessonmodule.NewService(lessonRepository)
 	lessonHandler := lessonmodule.NewHandler(lessonService)
 
-	auditRepository := auditmodule.NewRepository(db)
-	auditService := auditmodule.NewService(auditRepository)
 	auditHandler := auditmodule.NewHandler(auditService)
 
 	attendanceRepository := attendancemodule.NewRepository(db)

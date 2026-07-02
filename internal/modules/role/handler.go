@@ -5,16 +5,27 @@ import (
 	"errors"
 	"net/http"
 
+	auditmodule "github.com/Rumm1/eduhub-backend/internal/modules/audit"
+	usercontext "github.com/Rumm1/eduhub-backend/internal/shared/context"
 	"github.com/Rumm1/eduhub-backend/internal/shared/response"
 	"github.com/go-chi/chi/v5"
 )
 
 type Handler struct {
-	service *Service
+	service      *Service
+	auditService AuditService
 }
 
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+func NewHandler(service *Service, auditServices ...AuditService) *Handler {
+	var auditService AuditService
+	if len(auditServices) > 0 {
+		auditService = auditServices[0]
+	}
+
+	return &Handler{
+		service:      service,
+		auditService: auditService,
+	}
 }
 
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
@@ -52,6 +63,8 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		writeRoleError(w, err)
 		return
 	}
+
+	h.writeRoleCreatedAudit(r, result.ID)
 
 	response.Success(w, http.StatusCreated, result)
 }
@@ -116,6 +129,35 @@ func (h *Handler) RemovePermission(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.Success(w, http.StatusOK, result)
+}
+
+func (h *Handler) writeRoleCreatedAudit(r *http.Request, roleID string) {
+	if h.auditService == nil {
+		return
+	}
+
+	currentUser, ok := usercontext.GetUser(r.Context())
+	if !ok || currentUser.OrganizationID == nil {
+		return
+	}
+
+	_ = h.auditService.Create(r.Context(), auditmodule.CreateAuditLogInput{
+		OrganizationID: currentUser.OrganizationID.String(),
+		UserID:         currentUser.UserID.String(),
+		Action:         "role.created",
+		EntityType:     "role",
+		EntityID:       roleID,
+		Description:    "Role created",
+		IPAddress:      getClientIP(r),
+		UserAgent:      r.UserAgent(),
+		Metadata: map[string]interface{}{
+			"method":      r.Method,
+			"path":        r.URL.Path,
+			"query":       r.URL.RawQuery,
+			"status_code": http.StatusCreated,
+			"roles":       currentUser.Roles,
+		},
+	})
 }
 
 func writeRoleError(w http.ResponseWriter, err error) {

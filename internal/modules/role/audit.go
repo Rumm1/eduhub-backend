@@ -82,10 +82,6 @@ func resolveRoleAuditAction(method string, path string) (string, string, string,
 
 	afterRolesCount := len(parts) - rolesIndex - 1
 
-	if afterRolesCount == 0 && method == http.MethodPost {
-		return "role.created", "role", "", true
-	}
-
 	if afterRolesCount == 1 {
 		roleID := parts[rolesIndex+1]
 
