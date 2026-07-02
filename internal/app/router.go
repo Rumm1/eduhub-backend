@@ -44,6 +44,9 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 	authService := authmodule.NewService(authRepository, jwtManager)
 	authHandler := authmodule.NewHandler(authService)
 
+	auditRepository := auditmodule.NewRepository(db)
+	auditService := auditmodule.NewService(auditRepository)
+
 	organizationRepository := organizationmodule.NewRepository(db)
 	organizationService := organizationmodule.NewService(organizationRepository)
 	organizationHandler := organizationmodule.NewHandler(organizationService)
@@ -55,9 +58,6 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 	userRepository := usermodule.NewRepository(db)
 	userService := usermodule.NewService(userRepository)
 	userHandler := usermodule.NewHandler(userService)
-
-	auditRepository := auditmodule.NewRepository(db)
-	auditService := auditmodule.NewService(auditRepository)
 
 	profileRepository := profilemodule.NewRepository(db)
 	profileService := profilemodule.NewService(profileRepository)
