@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Rumm1/eduhub-backend/internal/middleware"
+	aimodule "github.com/Rumm1/eduhub-backend/internal/modules/ai"
 	attendancemodule "github.com/Rumm1/eduhub-backend/internal/modules/attendance"
 	auditmodule "github.com/Rumm1/eduhub-backend/internal/modules/audit"
 	authmodule "github.com/Rumm1/eduhub-backend/internal/modules/auth"
@@ -44,6 +45,10 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 	r.Use(chimiddleware.RealIP)
 	r.Use(chimiddleware.Logger)
 	r.Use(chimiddleware.Recoverer)
+
+	aiRepository := aimodule.NewRepository(db)
+	aiService := aimodule.NewService(aiRepository)
+	aiHandler := aimodule.NewHandler(aiService)
 
 	authRepository := authmodule.NewRepository(db)
 	authService := authmodule.NewService(authRepository, jwtManager)
@@ -175,6 +180,13 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 			}
 
 			response.Message(w, http.StatusOK, "PostgreSQL is connected")
+		})
+
+		r.Route("/ai", func(r chi.Router) {
+			r.Use(middleware.Auth(jwtManager))
+			r.Use(middleware.RequireTenant)
+
+			aimodule.RegisterRoutes(r, aiHandler)
 		})
 
 		r.Route("/auth", func(r chi.Router) {
