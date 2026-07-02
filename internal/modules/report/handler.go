@@ -3,6 +3,7 @@ package report
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/Rumm1/eduhub-backend/internal/shared/response"
 )
@@ -19,7 +20,7 @@ func (h *Handler) GetTeacherSchedule(w http.ResponseWriter, r *http.Request) {
 	teacherID := r.URL.Query().Get("teacher_id")
 	fromDate := r.URL.Query().Get("from_date")
 	toDate := r.URL.Query().Get("to_date")
-	format := r.URL.Query().Get("format")
+	format := normalizeReportFormat(r.URL.Query().Get("format"))
 	lang := r.URL.Query().Get("lang")
 
 	result, err := h.service.GetTeacherSchedule(r.Context(), teacherID, fromDate, toDate)
@@ -28,14 +29,24 @@ func (h *Handler) GetTeacherSchedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if format == "xlsx" {
+	switch format {
+	case "xlsx":
 		fileBytes, filename, err := BuildTeacherScheduleXLSX(result, lang)
 		if err != nil {
 			response.Error(w, http.StatusInternalServerError, "EXPORT_ERROR", "Failed to export report")
 			return
 		}
 
-		writeFile(w, fileBytes, filename)
+		writeBinaryFile(w, fileBytes, filename, xlsxContentType)
+		return
+	case "pdf":
+		fileBytes, filename, err := BuildTeacherSchedulePDF(result, lang)
+		if err != nil {
+			response.Error(w, http.StatusInternalServerError, "EXPORT_ERROR", "Failed to export report")
+			return
+		}
+
+		writeBinaryFile(w, fileBytes, filename, pdfContentType)
 		return
 	}
 
@@ -49,7 +60,7 @@ func (h *Handler) GetPaymentsReport(w http.ResponseWriter, r *http.Request) {
 	groupID := r.URL.Query().Get("group_id")
 	studentID := r.URL.Query().Get("student_id")
 	status := r.URL.Query().Get("status")
-	format := r.URL.Query().Get("format")
+	format := normalizeReportFormat(r.URL.Query().Get("format"))
 	lang := r.URL.Query().Get("lang")
 
 	result, err := h.service.GetPaymentsReport(
@@ -66,14 +77,24 @@ func (h *Handler) GetPaymentsReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if format == "xlsx" {
+	switch format {
+	case "xlsx":
 		fileBytes, filename, err := BuildPaymentsReportXLSX(result, lang)
 		if err != nil {
 			response.Error(w, http.StatusInternalServerError, "EXPORT_ERROR", "Failed to export report")
 			return
 		}
 
-		writeFile(w, fileBytes, filename)
+		writeBinaryFile(w, fileBytes, filename, xlsxContentType)
+		return
+	case "pdf":
+		fileBytes, filename, err := BuildPaymentsReportPDF(result, lang)
+		if err != nil {
+			response.Error(w, http.StatusInternalServerError, "EXPORT_ERROR", "Failed to export report")
+			return
+		}
+
+		writeBinaryFile(w, fileBytes, filename, pdfContentType)
 		return
 	}
 
@@ -86,7 +107,7 @@ func (h *Handler) GetStudentBalancesReport(w http.ResponseWriter, r *http.Reques
 	groupID := r.URL.Query().Get("group_id")
 	studentID := r.URL.Query().Get("student_id")
 	status := r.URL.Query().Get("status")
-	format := r.URL.Query().Get("format")
+	format := normalizeReportFormat(r.URL.Query().Get("format"))
 	lang := r.URL.Query().Get("lang")
 
 	result, err := h.service.GetStudentBalancesReport(
@@ -102,14 +123,24 @@ func (h *Handler) GetStudentBalancesReport(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if format == "xlsx" {
+	switch format {
+	case "xlsx":
 		fileBytes, filename, err := BuildStudentBalancesReportXLSX(result, lang)
 		if err != nil {
 			response.Error(w, http.StatusInternalServerError, "EXPORT_ERROR", "Failed to export report")
 			return
 		}
 
-		writeFile(w, fileBytes, filename)
+		writeBinaryFile(w, fileBytes, filename, xlsxContentType)
+		return
+	case "pdf":
+		fileBytes, filename, err := BuildStudentBalancesReportPDF(result, lang)
+		if err != nil {
+			response.Error(w, http.StatusInternalServerError, "EXPORT_ERROR", "Failed to export report")
+			return
+		}
+
+		writeBinaryFile(w, fileBytes, filename, pdfContentType)
 		return
 	}
 
@@ -121,7 +152,7 @@ func (h *Handler) GetPayrollReport(w http.ResponseWriter, r *http.Request) {
 	teacherID := r.URL.Query().Get("teacher_id")
 	status := r.URL.Query().Get("status")
 	teacherConfirmationStatus := r.URL.Query().Get("teacher_confirmation_status")
-	format := r.URL.Query().Get("format")
+	format := normalizeReportFormat(r.URL.Query().Get("format"))
 	lang := r.URL.Query().Get("lang")
 
 	result, err := h.service.GetPayrollReport(
@@ -136,22 +167,36 @@ func (h *Handler) GetPayrollReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if format == "xlsx" {
+	switch format {
+	case "xlsx":
 		fileBytes, filename, err := BuildPayrollReportXLSX(result, lang)
 		if err != nil {
 			response.Error(w, http.StatusInternalServerError, "EXPORT_ERROR", "Failed to export report")
 			return
 		}
 
-		writeFile(w, fileBytes, filename)
+		writeBinaryFile(w, fileBytes, filename, xlsxContentType)
+		return
+	case "pdf":
+		fileBytes, filename, err := BuildPayrollReportPDF(result, lang)
+		if err != nil {
+			response.Error(w, http.StatusInternalServerError, "EXPORT_ERROR", "Failed to export report")
+			return
+		}
+
+		writeBinaryFile(w, fileBytes, filename, pdfContentType)
 		return
 	}
 
 	response.Success(w, http.StatusOK, result)
 }
 
-func writeFile(w http.ResponseWriter, fileBytes []byte, filename string) {
-	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+func normalizeReportFormat(formatRaw string) string {
+	return strings.ToLower(strings.TrimSpace(formatRaw))
+}
+
+func writeBinaryFile(w http.ResponseWriter, fileBytes []byte, filename string, contentType string) {
+	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
 	w.WriteHeader(http.StatusOK)
 
