@@ -29,7 +29,8 @@ organization_id,
 email,
 password_hash,
 full_name,
-status
+status,
+COALESCE(must_change_password, false)
 FROM users
 WHERE LOWER(email) = $1
 LIMIT 1
@@ -40,6 +41,7 @@ LIMIT 1
 		&user.PasswordHash,
 		&user.FullName,
 		&user.Status,
+		&user.MustChangePassword,
 	)
 
 	if err != nil {
@@ -59,7 +61,8 @@ organization_id,
 email,
 password_hash,
 full_name,
-status
+status,
+COALESCE(must_change_password, false)
 FROM users
 WHERE id = $1
 LIMIT 1
@@ -70,6 +73,7 @@ LIMIT 1
 		&user.PasswordHash,
 		&user.FullName,
 		&user.Status,
+		&user.MustChangePassword,
 	)
 
 	if err != nil {
@@ -77,6 +81,17 @@ LIMIT 1
 	}
 
 	return user, nil
+}
+
+func (r *Repository) UpdatePasswordAndClearMustChange(ctx context.Context, userID uuid.UUID, passwordHash string) error {
+	_, err := r.db.Exec(ctx, `
+UPDATE users
+SET password_hash = $2,
+    must_change_password = FALSE
+WHERE id = $1
+`, userID, passwordHash)
+
+	return err
 }
 
 func (r *Repository) GetUserAccessData(ctx context.Context, email string) (UserAccessData, error) {

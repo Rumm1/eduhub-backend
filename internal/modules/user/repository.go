@@ -38,9 +38,10 @@ password_hash,
 full_name,
 phone,
 avatar_path,
-status
+status,
+must_change_password
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE)
 `,
 		newUser.ID,
 		newUser.OrganizationID,

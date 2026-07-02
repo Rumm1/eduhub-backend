@@ -60,6 +60,23 @@ func (h *Handler) SwitchProfile(w http.ResponseWriter, r *http.Request) {
 	response.Success(w, http.StatusOK, result)
 }
 
+func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	var req ChangePasswordRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "INVALID_JSON", "Invalid request body")
+		return
+	}
+
+	result, err := h.service.ChangePassword(r.Context(), req)
+	if err != nil {
+		writeAuthError(w, err)
+		return
+	}
+
+	response.Success(w, http.StatusOK, result)
+}
+
 func writeAuthError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, ErrInvalidCredentials):
@@ -72,6 +89,14 @@ func writeAuthError(w http.ResponseWriter, err error) {
 		response.Error(w, http.StatusBadRequest, "PROFILE_ID_INVALID", "Profile id is invalid")
 	case errors.Is(err, ErrUserContextMissing):
 		response.Error(w, http.StatusUnauthorized, "UNAUTHORIZED", "Unauthorized")
+	case errors.Is(err, ErrCurrentPasswordMissing):
+		response.Error(w, http.StatusBadRequest, "CURRENT_PASSWORD_REQUIRED", "Current password is required")
+	case errors.Is(err, ErrNewPasswordMissing):
+		response.Error(w, http.StatusBadRequest, "NEW_PASSWORD_REQUIRED", "New password is required")
+	case errors.Is(err, ErrNewPasswordTooShort):
+		response.Error(w, http.StatusBadRequest, "NEW_PASSWORD_TOO_SHORT", "New password must be at least 8 characters")
+	case errors.Is(err, ErrNewPasswordSame):
+		response.Error(w, http.StatusBadRequest, "NEW_PASSWORD_SAME_AS_CURRENT", "New password must be different from current password")
 	default:
 		response.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
 	}

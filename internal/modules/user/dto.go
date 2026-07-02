@@ -19,6 +19,17 @@ type CreateUserProfileRequest struct {
 	BranchIDs   []string `json:"branch_ids"`
 }
 
+type CreateUserResponse struct {
+	User                 UserResponse                 `json:"user"`
+	TemporaryCredentials TemporaryCredentialsResponse `json:"temporary_credentials"`
+}
+
+type TemporaryCredentialsResponse struct {
+	Login              string `json:"login"`
+	Password           string `json:"password"`
+	MustChangePassword bool   `json:"must_change_password"`
+}
+
 type UserResponse struct {
 	ID             string                `json:"id"`
 	OrganizationID string                `json:"organization_id"`

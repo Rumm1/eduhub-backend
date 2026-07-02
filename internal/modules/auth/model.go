@@ -3,12 +3,13 @@ package auth
 import "github.com/google/uuid"
 
 type User struct {
-	ID             uuid.UUID
-	OrganizationID *uuid.UUID
-	Email          string
-	PasswordHash   string
-	FullName       string
-	Status         string
+	ID                 uuid.UUID
+	OrganizationID     *uuid.UUID
+	Email              string
+	PasswordHash       string
+	FullName           string
+	Status             string
+	MustChangePassword bool
 }
 
 type UserProfile struct {

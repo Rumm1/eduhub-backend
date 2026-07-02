@@ -14,5 +14,6 @@ func RegisterRoutes(r chi.Router, handler *Handler, jwtManager *platformjwt.Mana
 
 		r.Get("/me", handler.Me)
 		r.Post("/switch-profile", handler.SwitchProfile)
+		r.Post("/change-password", handler.ChangePassword)
 	})
 }

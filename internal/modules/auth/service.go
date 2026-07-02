@@ -12,11 +12,15 @@ import (
 )
 
 var (
-	ErrInvalidCredentials = errors.New("invalid email or password")
-	ErrUserInactive       = errors.New("user is inactive")
-	ErrProfileInactive    = errors.New("profile is inactive")
-	ErrProfileIDInvalid   = errors.New("profile id is invalid")
-	ErrUserContextMissing = errors.New("user context missing")
+	ErrInvalidCredentials     = errors.New("invalid email or password")
+	ErrUserInactive           = errors.New("user is inactive")
+	ErrProfileInactive        = errors.New("profile is inactive")
+	ErrProfileIDInvalid       = errors.New("profile id is invalid")
+	ErrUserContextMissing     = errors.New("user context missing")
+	ErrCurrentPasswordMissing = errors.New("current password is required")
+	ErrNewPasswordMissing     = errors.New("new password is required")
+	ErrNewPasswordTooShort    = errors.New("new password is too short")
+	ErrNewPasswordSame        = errors.New("new password must be different from current password")
 )
 
 type Service struct {
@@ -72,15 +76,7 @@ func (s *Service) Me(ctx context.Context) (UserResponse, error) {
 		return UserResponse{}, ErrUserContextMissing
 	}
 
-	var accessData UserAccessData
-	var err error
-
-	if currentUser.ProfileID != nil {
-		accessData, err = s.repo.GetUserAccessDataByProfileID(ctx, currentUser.UserID, *currentUser.ProfileID)
-	} else {
-		accessData, err = s.repo.GetUserAccessDataByID(ctx, currentUser.UserID)
-	}
-
+	accessData, err := s.getCurrentAccessData(ctx, currentUser.UserID, currentUser.ProfileID)
 	if err != nil {
 		return UserResponse{}, err
 	}
@@ -124,6 +120,64 @@ func (s *Service) SwitchProfile(ctx context.Context, req SwitchProfileRequest) (
 	}, nil
 }
 
+func (s *Service) ChangePassword(ctx context.Context, req ChangePasswordRequest) (UserResponse, error) {
+	currentUser, ok := usercontext.GetUser(ctx)
+	if !ok {
+		return UserResponse{}, ErrUserContextMissing
+	}
+
+	currentPassword := strings.TrimSpace(req.CurrentPassword)
+	if currentPassword == "" {
+		return UserResponse{}, ErrCurrentPasswordMissing
+	}
+
+	newPassword := strings.TrimSpace(req.NewPassword)
+	if newPassword == "" {
+		return UserResponse{}, ErrNewPasswordMissing
+	}
+
+	if len(newPassword) < 8 {
+		return UserResponse{}, ErrNewPasswordTooShort
+	}
+
+	user, err := s.repo.GetUserByID(ctx, currentUser.UserID)
+	if err != nil {
+		return UserResponse{}, ErrInvalidCredentials
+	}
+
+	if !password.Compare(user.PasswordHash, currentPassword) {
+		return UserResponse{}, ErrInvalidCredentials
+	}
+
+	if password.Compare(user.PasswordHash, newPassword) {
+		return UserResponse{}, ErrNewPasswordSame
+	}
+
+	hashedPassword, err := password.Hash(newPassword)
+	if err != nil {
+		return UserResponse{}, err
+	}
+
+	if err := s.repo.UpdatePasswordAndClearMustChange(ctx, currentUser.UserID, hashedPassword); err != nil {
+		return UserResponse{}, err
+	}
+
+	accessData, err := s.getCurrentAccessData(ctx, currentUser.UserID, currentUser.ProfileID)
+	if err != nil {
+		return UserResponse{}, err
+	}
+
+	return buildUserResponse(accessData), nil
+}
+
+func (s *Service) getCurrentAccessData(ctx context.Context, userID uuid.UUID, profileID *uuid.UUID) (UserAccessData, error) {
+	if profileID != nil {
+		return s.repo.GetUserAccessDataByProfileID(ctx, userID, *profileID)
+	}
+
+	return s.repo.GetUserAccessDataByID(ctx, userID)
+}
+
 func (s *Service) buildAccessToken(accessData UserAccessData) (string, error) {
 	profileID := accessData.Profile.ID
 
@@ -141,17 +195,36 @@ func buildUserResponse(accessData UserAccessData) UserResponse {
 	profileID := accessData.Profile.ID.String()
 
 	return UserResponse{
-		ID:                accessData.User.ID.String(),
-		ProfileID:         &profileID,
-		OrganizationID:    uuidToStringPointer(accessData.Profile.OrganizationID),
-		Email:             accessData.User.Email,
-		FullName:          accessData.User.FullName,
-		Roles:             accessData.Roles,
-		Permissions:       accessData.Permissions,
-		BranchIDs:         uuidSliceToStringSlice(accessData.BranchIDs),
-		CurrentProfile:    buildProfileResponsePointer(accessData.Profile),
-		AvailableProfiles: buildProfileResponses(accessData.AvailableProfiles),
+		ID:                 accessData.User.ID.String(),
+		ProfileID:          &profileID,
+		OrganizationID:     uuidToStringPointer(accessData.Profile.OrganizationID),
+		Email:              accessData.User.Email,
+		FullName:           accessData.User.FullName,
+		Roles:              accessData.Roles,
+		Permissions:        accessData.Permissions,
+		BranchIDs:          uuidSliceToStringSlice(accessData.BranchIDs),
+		MustChangePassword: shouldForcePasswordChange(accessData),
+		CurrentProfile:     buildProfileResponsePointer(accessData.Profile),
+		AvailableProfiles:  buildProfileResponses(accessData.AvailableProfiles),
 	}
+}
+
+func shouldForcePasswordChange(accessData UserAccessData) bool {
+	if hasRole(accessData.Roles, "SUPER_ADMIN") {
+		return false
+	}
+
+	return accessData.User.MustChangePassword
+}
+
+func hasRole(roles []string, role string) bool {
+	for _, item := range roles {
+		if item == role {
+			return true
+		}
+	}
+
+	return false
 }
 
 func buildProfileResponses(profiles []UserProfile) []ProfileResponse {

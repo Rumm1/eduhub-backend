@@ -32,35 +32,40 @@ func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
 }
 
-func (s *Service) Create(ctx context.Context, req CreateUserRequest) (UserResponse, error) {
+func (s *Service) Create(ctx context.Context, req CreateUserRequest) (CreateUserResponse, error) {
 	currentUser, ok := usercontext.GetUser(ctx)
 	if !ok || currentUser.OrganizationID == nil {
-		return UserResponse{}, ErrTenantRequired
+		return CreateUserResponse{}, ErrTenantRequired
 	}
 
 	email := strings.ToLower(strings.TrimSpace(req.Email))
 	if email == "" {
-		return UserResponse{}, ErrEmailRequired
+		return CreateUserResponse{}, ErrEmailRequired
 	}
 
 	plainPassword := strings.TrimSpace(req.Password)
 	if plainPassword == "" {
-		return UserResponse{}, ErrPasswordRequired
+		generatedPassword, err := generateTemporaryPassword()
+		if err != nil {
+			return CreateUserResponse{}, err
+		}
+
+		plainPassword = generatedPassword
 	}
 
 	fullName := strings.TrimSpace(req.FullName)
 	if fullName == "" {
-		return UserResponse{}, ErrFullNameRequired
+		return CreateUserResponse{}, ErrFullNameRequired
 	}
 
 	profiles, err := buildProfilesFromRequest(req.Profiles, *currentUser.OrganizationID, fullName)
 	if err != nil {
-		return UserResponse{}, err
+		return CreateUserResponse{}, err
 	}
 
 	hashedPassword, err := password.Hash(plainPassword)
 	if err != nil {
-		return UserResponse{}, err
+		return CreateUserResponse{}, err
 	}
 
 	newUser := User{
@@ -80,15 +85,22 @@ func (s *Service) Create(ctx context.Context, req CreateUserRequest) (UserRespon
 
 	createdUser, err := s.repo.CreateUserWithProfiles(ctx, newUser, profiles)
 	if err != nil {
-		return UserResponse{}, err
+		return CreateUserResponse{}, err
 	}
 
 	roles, savedBranchIDs, savedProfiles, err := s.repo.BuildUserResponseData(ctx, createdUser.ID)
 	if err != nil {
-		return UserResponse{}, err
+		return CreateUserResponse{}, err
 	}
 
-	return buildUserResponse(createdUser, roles, savedBranchIDs, savedProfiles), nil
+	return CreateUserResponse{
+		User: buildUserResponse(createdUser, roles, savedBranchIDs, savedProfiles),
+		TemporaryCredentials: TemporaryCredentialsResponse{
+			Login:              createdUser.Email,
+			Password:           plainPassword,
+			MustChangePassword: true,
+		},
+	}, nil
 }
 
 func (s *Service) List(ctx context.Context) (ListUsersResponse, error) {
