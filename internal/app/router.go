@@ -24,6 +24,7 @@ import (
 	paymentmodule "github.com/Rumm1/eduhub-backend/internal/modules/payment"
 	payrollmodule "github.com/Rumm1/eduhub-backend/internal/modules/payroll"
 	permissionmodule "github.com/Rumm1/eduhub-backend/internal/modules/permission"
+	platformdashboardmodule "github.com/Rumm1/eduhub-backend/internal/modules/platformdashboard"
 	profilemodule "github.com/Rumm1/eduhub-backend/internal/modules/profile"
 	reportmodule "github.com/Rumm1/eduhub-backend/internal/modules/report"
 	rolemodule "github.com/Rumm1/eduhub-backend/internal/modules/role"
@@ -139,6 +140,10 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 	parentService := parentmodule.NewService(parentRepository)
 	parentHandler := parentmodule.NewHandler(parentService)
 
+	platformDashboardRepository := platformdashboardmodule.NewRepository(db)
+	platformDashboardService := platformdashboardmodule.NewService(platformDashboardRepository)
+	platformDashboardHandler := platformdashboardmodule.NewHandler(platformDashboardService)
+
 	paymentRepository := paymentmodule.NewRepository(db)
 	paymentService := paymentmodule.NewService(paymentRepository)
 	paymentHandler := paymentmodule.NewHandler(paymentService)
@@ -208,7 +213,7 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 		r.Route("/platform", func(r chi.Router) {
 			r.Use(middleware.Auth(jwtManager))
 			r.Use(middleware.RequireRole("SUPER_ADMIN"))
-
+			platformdashboardmodule.RegisterRoutes(r, platformDashboardHandler)
 			organizationmodule.RegisterPlatformRoutes(r, organizationHandler)
 		})
 
