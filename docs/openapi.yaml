@@ -1,0 +1,1237 @@
+﻿openapi: 3.0.3
+
+info:
+  title: EduHub Backend API
+  version: 1.0.0
+  description: |
+    EduHub Backend is a CRM/SaaS backend for educational centers.
+    It includes authentication, users, profiles, roles, permissions,
+    students, parents, teachers, groups, lessons, attendance, homework,
+    schedules, payments, payroll, reports, files, notifications, imports,
+    dashboard and AI chat.
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local API
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Auth
+  - name: Dashboard
+  - name: AI
+  - name: Branches
+  - name: Subjects
+  - name: Users
+  - name: Profiles
+  - name: Roles
+  - name: Permissions
+  - name: Teachers
+  - name: Students
+  - name: Parents
+  - name: Groups
+  - name: Lessons
+  - name: Attendance
+  - name: Homework
+  - name: Schedules
+  - name: Payments
+  - name: Payroll
+  - name: Reports
+  - name: Files
+  - name: Notifications
+  - name: Imports
+  - name: Audit Logs
+
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: admin@smarthub.kz
+              password: Admin123!
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /auth/switch-profile:
+    post:
+      tags: [Auth]
+      summary: Switch active profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [profile_id]
+              properties:
+                profile_id:
+                  type: string
+                  format: uuid
+      responses:
+        "200":
+          description: Profile switched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /dashboard/overview:
+    get:
+      tags: [Dashboard]
+      summary: Get dashboard overview
+      responses:
+        "200":
+          description: Dashboard metrics returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /ai/insights/dashboard:
+    get:
+      tags: [AI]
+      summary: Get AI dashboard insights
+      responses:
+        "200":
+          description: AI dashboard insights returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /ai/chat:
+    post:
+      tags: [AI]
+      summary: AI chat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AIChatRequest'
+            example:
+              message: Что по долгам студентов?
+      responses:
+        "200":
+          description: AI chat response returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /branches:
+    get:
+      tags: [Branches]
+      summary: List branches
+      responses:
+        "200":
+          description: Branches returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    post:
+      tags: [Branches]
+      summary: Create branch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBranchRequest'
+      responses:
+        "201":
+          description: Branch created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /subjects:
+    get:
+      tags: [Subjects]
+      summary: List subjects
+      responses:
+        "200":
+          description: Subjects returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    post:
+      tags: [Subjects]
+      summary: Create subject
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSubjectRequest'
+      responses:
+        "201":
+          description: Subject created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /users:
+    get:
+      tags: [Users]
+      summary: List users
+      responses:
+        "200":
+          description: Users returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    post:
+      tags: [Users]
+      summary: Create user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /users/{userID}/profiles:
+    get:
+      tags: [Profiles]
+      summary: List user profiles
+      parameters:
+        - $ref: '#/components/parameters/UserID'
+      responses:
+        "200":
+          description: Profiles returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    post:
+      tags: [Profiles]
+      summary: Create user profile
+      parameters:
+        - $ref: '#/components/parameters/UserID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "201":
+          description: Profile created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /profiles/{profileID}:
+    get:
+      tags: [Profiles]
+      summary: Get profile
+      parameters:
+        - $ref: '#/components/parameters/ProfileID'
+      responses:
+        "200":
+          description: Profile returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    patch:
+      tags: [Profiles]
+      summary: Update profile
+      parameters:
+        - $ref: '#/components/parameters/ProfileID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    delete:
+      tags: [Profiles]
+      summary: Disable profile
+      parameters:
+        - $ref: '#/components/parameters/ProfileID'
+      responses:
+        "200":
+          description: Profile disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /roles:
+    get:
+      tags: [Roles]
+      summary: List roles
+      responses:
+        "200":
+          description: Roles returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    post:
+      tags: [Roles]
+      summary: Create role
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "201":
+          description: Role created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /permissions:
+    get:
+      tags: [Permissions]
+      summary: List permissions
+      responses:
+        "200":
+          description: Permissions returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /permissions/groups:
+    get:
+      tags: [Permissions]
+      summary: List permission groups
+      responses:
+        "200":
+          description: Permission groups returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /teachers:
+    get:
+      tags: [Teachers]
+      summary: List teachers
+      responses:
+        "200":
+          description: Teachers returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    post:
+      tags: [Teachers]
+      summary: Create teacher profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "201":
+          description: Teacher created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /students:
+    get:
+      tags: [Students]
+      summary: List students
+      responses:
+        "200":
+          description: Students returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    post:
+      tags: [Students]
+      summary: Create student
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "201":
+          description: Student created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /parents:
+    get:
+      tags: [Parents]
+      summary: List parents
+      responses:
+        "200":
+          description: Parents returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    post:
+      tags: [Parents]
+      summary: Create parent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateParentRequest'
+      responses:
+        "201":
+          description: Parent created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /parents/{parentID}:
+    get:
+      tags: [Parents]
+      summary: Get parent
+      parameters:
+        - $ref: '#/components/parameters/ParentID'
+      responses:
+        "200":
+          description: Parent returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    patch:
+      tags: [Parents]
+      summary: Update parent
+      parameters:
+        - $ref: '#/components/parameters/ParentID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateParentRequest'
+      responses:
+        "200":
+          description: Parent updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    delete:
+      tags: [Parents]
+      summary: Delete parent
+      parameters:
+        - $ref: '#/components/parameters/ParentID'
+      responses:
+        "200":
+          description: Parent deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /groups:
+    get:
+      tags: [Groups]
+      summary: List groups
+      responses:
+        "200":
+          description: Groups returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    post:
+      tags: [Groups]
+      summary: Create group
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "201":
+          description: Group created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /groups/{groupID}/students:
+    get:
+      tags: [Groups]
+      summary: List group students
+      parameters:
+        - $ref: '#/components/parameters/GroupID'
+      responses:
+        "200":
+          description: Group students returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    post:
+      tags: [Groups]
+      summary: Add student to group
+      parameters:
+        - $ref: '#/components/parameters/GroupID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                student_id:
+                  type: string
+                  format: uuid
+      responses:
+        "200":
+          description: Student added to group
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /lessons:
+    get:
+      tags: [Lessons]
+      summary: List lessons
+      parameters:
+        - name: branch_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: group_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: teacher_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: from_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Lessons returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    post:
+      tags: [Lessons]
+      summary: Create lesson
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "201":
+          description: Lesson created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /lessons/{lessonID}/teacher:
+    patch:
+      tags: [Lessons]
+      summary: Replace lesson teacher
+      parameters:
+        - $ref: '#/components/parameters/LessonID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                actual_teacher_id:
+                  type: string
+                  format: uuid
+                substitution_reason:
+                  type: string
+      responses:
+        "200":
+          description: Teacher replaced
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /attendance/lessons/{lessonID}:
+    get:
+      tags: [Attendance]
+      summary: Get lesson attendance
+      parameters:
+        - $ref: '#/components/parameters/LessonID'
+      responses:
+        "200":
+          description: Attendance returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /attendance/lessons/{lessonID}/mark:
+    post:
+      tags: [Attendance]
+      summary: Mark lesson attendance
+      parameters:
+        - $ref: '#/components/parameters/LessonID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Attendance marked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /homeworks:
+    get:
+      tags: [Homework]
+      summary: List homeworks
+      responses:
+        "200":
+          description: Homeworks returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    post:
+      tags: [Homework]
+      summary: Create homework
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "201":
+          description: Homework created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /schedules:
+    get:
+      tags: [Schedules]
+      summary: List schedules
+      responses:
+        "200":
+          description: Schedules returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    post:
+      tags: [Schedules]
+      summary: Create schedule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "201":
+          description: Schedule created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /payments:
+    get:
+      tags: [Payments]
+      summary: List payments
+      parameters:
+        - name: branch_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: group_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: student_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: from_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Payments returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    post:
+      tags: [Payments]
+      summary: Create payment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "201":
+          description: Payment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /payroll/entries:
+    get:
+      tags: [Payroll]
+      summary: List payroll entries
+      parameters:
+        - name: period_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: teacher_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: teacher_confirmation_status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Payroll entries returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /payroll/entries/my:
+    get:
+      tags: [Payroll]
+      summary: List current teacher payroll entries
+      responses:
+        "200":
+          description: My payroll entries returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /reports/payments:
+    get:
+      tags: [Reports]
+      summary: Payments report
+      parameters:
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+        - $ref: '#/components/parameters/Format'
+        - $ref: '#/components/parameters/Lang'
+      responses:
+        "200":
+          description: Payments report returned or exported
+
+  /reports/student-balances:
+    get:
+      tags: [Reports]
+      summary: Student balances report
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            example: "2026-07"
+        - $ref: '#/components/parameters/Format'
+        - $ref: '#/components/parameters/Lang'
+      responses:
+        "200":
+          description: Student balances report returned or exported
+
+  /reports/payroll:
+    get:
+      tags: [Reports]
+      summary: Payroll report
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            example: "2026-07"
+        - $ref: '#/components/parameters/Format'
+        - $ref: '#/components/parameters/Lang'
+      responses:
+        "200":
+          description: Payroll report returned or exported
+
+  /reports/teacher-schedule:
+    get:
+      tags: [Reports]
+      summary: Teacher schedule report
+      parameters:
+        - name: teacher_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+        - $ref: '#/components/parameters/Format'
+        - $ref: '#/components/parameters/Lang'
+      responses:
+        "200":
+          description: Teacher schedule report returned or exported
+
+  /files/upload:
+    post:
+      tags: [Files]
+      summary: Upload file
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, folder]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                folder:
+                  type: string
+                  example: avatars
+      responses:
+        "201":
+          description: File uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /files:
+    get:
+      tags: [Files]
+      summary: List files
+      responses:
+        "200":
+          description: Files returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: List notifications
+      responses:
+        "200":
+          description: Notifications returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    post:
+      tags: [Notifications]
+      summary: Create notification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "201":
+          description: Notification created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /notifications/types:
+    get:
+      tags: [Notifications]
+      summary: List notification types
+      responses:
+        "200":
+          description: Notification types returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /imports/students/preview:
+    post:
+      tags: [Imports]
+      summary: Preview students and parents import
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: Import preview returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /imports/students/confirm:
+    post:
+      tags: [Imports]
+      summary: Confirm students and parents import
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: Import completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /audit-logs:
+    get:
+      tags: [Audit Logs]
+      summary: List audit logs
+      parameters:
+        - name: user_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: entity_type
+          in: query
+          schema:
+            type: string
+        - name: entity_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/FromDate'
+        - $ref: '#/components/parameters/ToDate'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            example: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            example: 0
+        - $ref: '#/components/parameters/Format'
+        - $ref: '#/components/parameters/Lang'
+      responses:
+        "200":
+          description: Audit logs returned or exported
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    UserID:
+      name: userID
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    ProfileID:
+      name: profileID
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    ParentID:
+      name: parentID
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    GroupID:
+      name: groupID
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    LessonID:
+      name: lessonID
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    FromDate:
+      name: from_date
+      in: query
+      schema:
+        type: string
+        format: date
+        example: "2026-07-01"
+
+    ToDate:
+      name: to_date
+      in: query
+      schema:
+        type: string
+        format: date
+        example: "2026-07-31"
+
+    Format:
+      name: format
+      in: query
+      schema:
+        type: string
+        enum: [json, xlsx, pdf, docx]
+
+    Lang:
+      name: lang
+      in: query
+      schema:
+        type: string
+        enum: [en, ru, kk]
+
+  schemas:
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          additionalProperties: true
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: ERROR_CODE
+            message:
+              type: string
+              example: Error message
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: admin@smarthub.kz
+        password:
+          type: string
+          example: Admin123!
+
+    AIChatRequest:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          example: Что по долгам студентов?
+
+    CreateBranchRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          example: Skillset
+        address:
+          type: string
+          example: Astana
+        phone:
+          type: string
+          example: "+77000000000"
+
+    CreateSubjectRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          example: Programming
+        description:
+          type: string
+          example: Programming course
+
+    CreateParentRequest:
+      type: object
+      required: [full_name]
+      properties:
+        full_name:
+          type: string
+          example: Parent Name
+        phone:
+          type: string
+          example: "+77000000001"
+        email:
+          type: string
+          format: email
+          example: parent@example.com

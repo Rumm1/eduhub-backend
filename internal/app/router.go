@@ -29,6 +29,7 @@ import (
 	schedulemodule "github.com/Rumm1/eduhub-backend/internal/modules/schedule"
 	studentmodule "github.com/Rumm1/eduhub-backend/internal/modules/student"
 	subjectmodule "github.com/Rumm1/eduhub-backend/internal/modules/subject"
+	swaggermodule "github.com/Rumm1/eduhub-backend/internal/modules/swagger"
 	teachermodule "github.com/Rumm1/eduhub-backend/internal/modules/teacher"
 	usermodule "github.com/Rumm1/eduhub-backend/internal/modules/user"
 	platformjwt "github.com/Rumm1/eduhub-backend/internal/platform/jwt"
@@ -164,6 +165,10 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 	})
 
 	r.Handle("/uploads/*", http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads"))))
+
+	r.Route("/swagger", func(r chi.Router) {
+		swaggermodule.RegisterRoutes(r)
+	})
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
