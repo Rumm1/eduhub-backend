@@ -11,14 +11,17 @@ import (
 )
 
 var (
-	ErrTenantRequired   = errors.New("tenant organization is required")
-	ErrEmailRequired    = errors.New("email is required")
-	ErrPasswordRequired = errors.New("password is required")
-	ErrFullNameRequired = errors.New("full name is required")
-	ErrRoleRequired     = errors.New("role is required")
-	ErrRoleInvalid      = errors.New("role is invalid")
-	ErrBranchIDInvalid  = errors.New("branch id is invalid")
-	ErrBranchNotFound   = errors.New("branch not found in organization")
+	ErrTenantRequired          = errors.New("tenant organization is required")
+	ErrEmailRequired           = errors.New("email is required")
+	ErrPasswordRequired        = errors.New("password is required")
+	ErrFullNameRequired        = errors.New("full name is required")
+	ErrProfilesRequired        = errors.New("profiles are required")
+	ErrDefaultProfileRequired  = errors.New("default profile is required")
+	ErrDefaultProfileDuplicate = errors.New("only one default profile is allowed")
+	ErrRoleRequired            = errors.New("role is required")
+	ErrRoleInvalid             = errors.New("role is invalid")
+	ErrBranchIDInvalid         = errors.New("branch id is invalid")
+	ErrBranchNotFound          = errors.New("branch not found in organization")
 )
 
 type Service struct {
@@ -50,17 +53,7 @@ func (s *Service) Create(ctx context.Context, req CreateUserRequest) (UserRespon
 		return UserResponse{}, ErrFullNameRequired
 	}
 
-	roleCode := normalizeRoleCode(req.RoleCode)
-	if roleCode == "" {
-		return UserResponse{}, ErrRoleRequired
-	}
-
-	role, ok := roleTemplateByCode(roleCode)
-	if !ok {
-		return UserResponse{}, ErrRoleInvalid
-	}
-
-	branchIDs, err := parseBranchIDs(req.BranchIDs)
+	profiles, err := buildProfilesFromRequest(req.Profiles, *currentUser.OrganizationID, fullName)
 	if err != nil {
 		return UserResponse{}, err
 	}
@@ -81,17 +74,21 @@ func (s *Service) Create(ctx context.Context, req CreateUserRequest) (UserRespon
 		Status:         "active",
 	}
 
-	createdUser, err := s.repo.CreateUserWithRoleAndBranches(ctx, newUser, role, branchIDs)
+	for index := range profiles {
+		profiles[index].UserID = newUser.ID
+	}
+
+	createdUser, err := s.repo.CreateUserWithProfiles(ctx, newUser, profiles)
 	if err != nil {
 		return UserResponse{}, err
 	}
 
-	roles, savedBranchIDs, err := s.repo.BuildUserResponseData(ctx, createdUser.ID)
+	roles, savedBranchIDs, savedProfiles, err := s.repo.BuildUserResponseData(ctx, createdUser.ID)
 	if err != nil {
 		return UserResponse{}, err
 	}
 
-	return buildUserResponse(createdUser, roles, savedBranchIDs), nil
+	return buildUserResponse(createdUser, roles, savedBranchIDs, savedProfiles), nil
 }
 
 func (s *Service) List(ctx context.Context) (ListUsersResponse, error) {
@@ -108,12 +105,12 @@ func (s *Service) List(ctx context.Context) (ListUsersResponse, error) {
 	items := make([]UserResponse, 0, len(users))
 
 	for _, item := range users {
-		roles, branchIDs, err := s.repo.BuildUserResponseData(ctx, item.ID)
+		roles, branchIDs, profiles, err := s.repo.BuildUserResponseData(ctx, item.ID)
 		if err != nil {
 			return ListUsersResponse{}, err
 		}
 
-		items = append(items, buildUserResponse(item, roles, branchIDs))
+		items = append(items, buildUserResponse(item, roles, branchIDs, profiles))
 	}
 
 	return ListUsersResponse{
@@ -122,16 +119,147 @@ func (s *Service) List(ctx context.Context) (ListUsersResponse, error) {
 	}, nil
 }
 
+func buildProfilesFromRequest(
+	requestProfiles []CreateUserProfileRequest,
+	organizationID uuid.UUID,
+	fullName string,
+) ([]UserProfile, error) {
+	if len(requestProfiles) == 0 {
+		return nil, ErrProfilesRequired
+	}
+
+	profiles := make([]UserProfile, 0, len(requestProfiles))
+	defaultCount := 0
+
+	for index, requestProfile := range requestProfiles {
+		isDefault := requestProfile.IsDefault
+
+		if len(requestProfiles) == 1 {
+			isDefault = true
+		}
+
+		if isDefault {
+			defaultCount++
+		}
+
+		roleCodes := normalizeRoleCodes(requestProfile.RoleCodes)
+		if len(roleCodes) == 0 {
+			return nil, ErrRoleRequired
+		}
+
+		branchIDs, err := parseBranchIDs(requestProfile.BranchIDs)
+		if err != nil {
+			return nil, err
+		}
+
+		branchID, err := parseOptionalBranchID(requestProfile.BranchID)
+		if err != nil {
+			return nil, err
+		}
+
+		if branchID == nil && len(branchIDs) > 0 {
+			firstBranchID := branchIDs[0]
+			branchID = &firstBranchID
+		}
+
+		displayName := strings.TrimSpace(requestProfile.DisplayName)
+		if displayName == "" {
+			displayName = fullName
+		}
+
+		position := strings.TrimSpace(requestProfile.Position)
+		if position == "" {
+			position = roleCodes[0]
+		}
+
+		profileType := normalizeProfileType(requestProfile.ProfileType)
+		if profileType == "" {
+			profileType = strings.ToLower(roleCodes[0])
+		}
+
+		profiles = append(profiles, UserProfile{
+			ID:             uuid.New(),
+			OrganizationID: organizationID,
+			BranchID:       branchID,
+			DisplayName:    displayName,
+			Position:       position,
+			ProfileType:    profileType,
+			Status:         "active",
+			IsDefault:      isDefault,
+			RoleCodes:      roleCodes,
+			BranchIDs:      branchIDs,
+		})
+
+		_ = index
+	}
+
+	if defaultCount == 0 {
+		return nil, ErrDefaultProfileRequired
+	}
+
+	if defaultCount > 1 {
+		return nil, ErrDefaultProfileDuplicate
+	}
+
+	return profiles, nil
+}
+
+func normalizeRoleCodes(rawRoleCodes []string) []string {
+	seen := make(map[string]struct{})
+	result := make([]string, 0, len(rawRoleCodes))
+
+	for _, rawRoleCode := range rawRoleCodes {
+		roleCode := normalizeRoleCode(rawRoleCode)
+		if roleCode == "" {
+			continue
+		}
+
+		if _, exists := seen[roleCode]; exists {
+			continue
+		}
+
+		seen[roleCode] = struct{}{}
+		result = append(result, roleCode)
+	}
+
+	return result
+}
+
 func normalizeRoleCode(roleCode string) string {
 	roleCode = strings.TrimSpace(roleCode)
 	roleCode = strings.ReplaceAll(roleCode, "-", "_")
+	roleCode = strings.ReplaceAll(roleCode, " ", "_")
 	roleCode = strings.ToUpper(roleCode)
 
 	return roleCode
 }
 
+func normalizeProfileType(profileType string) string {
+	profileType = strings.TrimSpace(profileType)
+	profileType = strings.ReplaceAll(profileType, "-", "_")
+	profileType = strings.ReplaceAll(profileType, " ", "_")
+	profileType = strings.ToLower(profileType)
+
+	return profileType
+}
+
+func parseOptionalBranchID(rawBranchID string) (*uuid.UUID, error) {
+	rawBranchID = strings.TrimSpace(rawBranchID)
+	if rawBranchID == "" {
+		return nil, nil
+	}
+
+	branchID, err := uuid.Parse(rawBranchID)
+	if err != nil {
+		return nil, ErrBranchIDInvalid
+	}
+
+	return &branchID, nil
+}
+
 func parseBranchIDs(rawBranchIDs []string) ([]uuid.UUID, error) {
 	branchIDs := make([]uuid.UUID, 0, len(rawBranchIDs))
+	seen := make(map[uuid.UUID]struct{})
 
 	for _, rawID := range rawBranchIDs {
 		rawID = strings.TrimSpace(rawID)
@@ -144,13 +272,18 @@ func parseBranchIDs(rawBranchIDs []string) ([]uuid.UUID, error) {
 			return nil, ErrBranchIDInvalid
 		}
 
+		if _, exists := seen[branchID]; exists {
+			continue
+		}
+
+		seen[branchID] = struct{}{}
 		branchIDs = append(branchIDs, branchID)
 	}
 
 	return branchIDs, nil
 }
 
-func buildUserResponse(item User, roles []string, branchIDs []uuid.UUID) UserResponse {
+func buildUserResponse(item User, roles []string, branchIDs []uuid.UUID, profiles []UserProfile) UserResponse {
 	return UserResponse{
 		ID:             item.ID.String(),
 		OrganizationID: item.OrganizationID.String(),
@@ -161,7 +294,37 @@ func buildUserResponse(item User, roles []string, branchIDs []uuid.UUID) UserRes
 		Status:         item.Status,
 		Roles:          roles,
 		BranchIDs:      uuidSliceToStringSlice(branchIDs),
+		Profiles:       buildProfileResponses(profiles),
 	}
+}
+
+func buildProfileResponses(profiles []UserProfile) []UserProfileResponse {
+	result := make([]UserProfileResponse, 0, len(profiles))
+
+	for _, profile := range profiles {
+		result = append(result, UserProfileResponse{
+			ID:             profile.ID.String(),
+			OrganizationID: profile.OrganizationID.String(),
+			BranchID:       uuidPointerToString(profile.BranchID),
+			DisplayName:    profile.DisplayName,
+			Position:       profile.Position,
+			ProfileType:    profile.ProfileType,
+			Status:         profile.Status,
+			IsDefault:      profile.IsDefault,
+			RoleCodes:      profile.RoleCodes,
+			BranchIDs:      uuidSliceToStringSlice(profile.BranchIDs),
+		})
+	}
+
+	return result
+}
+
+func uuidPointerToString(id *uuid.UUID) string {
+	if id == nil {
+		return ""
+	}
+
+	return id.String()
 }
 
 func uuidSliceToStringSlice(ids []uuid.UUID) []string {
@@ -172,123 +335,4 @@ func uuidSliceToStringSlice(ids []uuid.UUID) []string {
 	}
 
 	return result
-}
-
-func roleTemplateByCode(code string) (RoleTemplate, bool) {
-	templates := map[string]RoleTemplate{
-		"TEACHER": {
-			Code:        "TEACHER",
-			Name:        "Teacher",
-			Description: "Teacher role",
-			Permissions: []string{
-				"students.read",
-				"groups.read",
-				"lessons.read",
-				"lessons.create",
-				"lessons.update",
-				"attendance.read",
-				"attendance.manage",
-				"homeworks.read",
-				"homeworks.manage",
-				"files.upload",
-				"files.read",
-				"notifications.read",
-			},
-		},
-		"MANAGER": {
-			Code:        "MANAGER",
-			Name:        "Manager",
-			Description: "Manager role",
-			Permissions: []string{
-				"branches.read",
-				"users.read",
-				"subjects.read",
-				"teachers.read",
-				"students.read",
-				"students.create",
-				"students.update",
-				"groups.read",
-				"groups.create",
-				"groups.update",
-				"lessons.read",
-				"lessons.create",
-				"lessons.update",
-				"attendance.read",
-				"homeworks.read",
-				"payments.read",
-				"files.upload",
-				"files.read",
-				"notifications.read",
-				"notifications.manage",
-			},
-		},
-		"ACCOUNTANT": {
-			Code:        "ACCOUNTANT",
-			Name:        "Accountant",
-			Description: "Accountant role",
-			Permissions: []string{
-				"payments.read",
-				"payments.manage",
-				"payroll.read",
-				"payroll.manage",
-				"files.upload",
-				"files.read",
-				"notifications.read",
-			},
-		},
-		"BRANCH_ADMIN": {
-			Code:        "BRANCH_ADMIN",
-			Name:        "Branch Admin",
-			Description: "Branch administrator role",
-			Permissions: []string{
-				"branches.read",
-				"users.read",
-				"users.create",
-				"users.update",
-				"subjects.read",
-				"teachers.read",
-				"teachers.create",
-				"teachers.update",
-				"students.read",
-				"students.create",
-				"students.update",
-				"groups.read",
-				"groups.create",
-				"groups.update",
-				"lessons.read",
-				"lessons.create",
-				"lessons.update",
-				"attendance.read",
-				"attendance.manage",
-				"homeworks.read",
-				"homeworks.manage",
-				"payments.read",
-				"files.upload",
-				"files.read",
-				"notifications.read",
-				"notifications.manage",
-			},
-		},
-		"RECEPTIONIST": {
-			Code:        "RECEPTIONIST",
-			Name:        "Receptionist",
-			Description: "Receptionist role",
-			Permissions: []string{
-				"branches.read",
-				"students.read",
-				"students.create",
-				"students.update",
-				"groups.read",
-				"lessons.read",
-				"payments.read",
-				"payments.manage",
-				"files.upload",
-				"files.read",
-				"notifications.read",
-			},
-		},
-	}
-
-	template, ok := templates[code]
-	return template, ok
 }

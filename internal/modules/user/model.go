@@ -13,9 +13,16 @@ type User struct {
 	Status         string
 }
 
-type RoleTemplate struct {
-	Code        string
-	Name        string
-	Description string
-	Permissions []string
+type UserProfile struct {
+	ID             uuid.UUID
+	UserID         uuid.UUID
+	OrganizationID uuid.UUID
+	BranchID       *uuid.UUID
+	DisplayName    string
+	Position       string
+	ProfileType    string
+	Status         string
+	IsDefault      bool
+	RoleCodes      []string
+	BranchIDs      []uuid.UUID
 }
