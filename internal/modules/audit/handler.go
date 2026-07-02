@@ -2,7 +2,6 @@ package audit
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -144,7 +143,6 @@ func writeAuditError(w http.ResponseWriter, err error) {
 	case errors.Is(err, ErrOffsetInvalid):
 		response.Error(w, http.StatusBadRequest, "OFFSET_INVALID", "Offset is invalid")
 	default:
-		fmt.Println("AUDIT ERROR:", err)
 		response.Error(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
 	}
 }
