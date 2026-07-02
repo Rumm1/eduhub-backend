@@ -226,11 +226,25 @@ func orgAdminPermissions() []string {
 
 		"payments.read",
 		"payments.manage",
+		"payments.create",
+		"payments.update_group_price",
 
 		"payroll.read",
 		"payroll.manage",
 		"payroll.approve",
 		"payroll.rules.manage",
+		"payroll.read_all",
+		"payroll.generate",
+		"payroll.adjustments.manage",
+		"payroll.send_to_teacher",
+		"payroll.mark_paid",
+		"payroll.export",
+
+		"reports.teacher_schedule.read",
+		"reports.payments.read",
+		"reports.payroll.read",
+		"reports.student_balance.read",
+		"reports.export",
 
 		"files.upload",
 		"files.read",
@@ -240,5 +254,7 @@ func orgAdminPermissions() []string {
 		"notifications.manage",
 
 		"audit.read",
+		"audit_logs.read",
+		"audit_logs.export",
 	}
 }

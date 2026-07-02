@@ -226,8 +226,6 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 			r.Use(middleware.Auth(jwtManager))
 			r.Use(middleware.RequireTenant)
 
-			r.Use(payrollmodule.PayrollAuditMiddleware(auditService))
-
 			payrollmodule.RegisterRoutes(r, payrollHandler)
 		})
 		r.Route("/reports", func(r chi.Router) {
