@@ -1,14 +1,46 @@
 package parent
 
-type CreateRequest struct {
-	Name string `json:"name"`
+type CreateParentRequest struct {
+	FullName string `json:"full_name"`
+	Phone    string `json:"phone"`
+	Email    string `json:"email"`
 }
 
-type UpdateRequest struct {
-	Name string `json:"name"`
+type UpdateParentRequest struct {
+	FullName string `json:"full_name"`
+	Phone    string `json:"phone"`
+	Email    string `json:"email"`
 }
 
-type ListResponse struct {
-	Items []Entity `json:"items"`
-	Total int64    `json:"total"`
+type AttachStudentRequest struct {
+	Relation string `json:"relation"`
+}
+
+type ParentResponse struct {
+	ID             string `json:"id"`
+	OrganizationID string `json:"organization_id"`
+	FullName       string `json:"full_name"`
+	Phone          string `json:"phone,omitempty"`
+	Email          string `json:"email,omitempty"`
+	CreatedAt      string `json:"created_at"`
+	UpdatedAt      string `json:"updated_at"`
+}
+
+type StudentResponse struct {
+	ID       string `json:"id"`
+	BranchID string `json:"branch_id"`
+	FullName string `json:"full_name"`
+	Phone    string `json:"phone,omitempty"`
+	Status   string `json:"status"`
+	Relation string `json:"relation,omitempty"`
+}
+
+type ListParentsResponse struct {
+	Items []ParentResponse `json:"items"`
+	Total int              `json:"total"`
+}
+
+type ListParentStudentsResponse struct {
+	Items []StudentResponse `json:"items"`
+	Total int               `json:"total"`
 }
