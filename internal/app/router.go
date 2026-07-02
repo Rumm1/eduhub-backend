@@ -10,6 +10,7 @@ import (
 	auditmodule "github.com/Rumm1/eduhub-backend/internal/modules/audit"
 	authmodule "github.com/Rumm1/eduhub-backend/internal/modules/auth"
 	branchmodule "github.com/Rumm1/eduhub-backend/internal/modules/branch"
+	dashboardmodule "github.com/Rumm1/eduhub-backend/internal/modules/dashboard"
 	filemodule "github.com/Rumm1/eduhub-backend/internal/modules/file"
 	groupmodule "github.com/Rumm1/eduhub-backend/internal/modules/group"
 	homeworkmodule "github.com/Rumm1/eduhub-backend/internal/modules/homework"
@@ -89,6 +90,10 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 	studentRepository := studentmodule.NewRepository(db)
 	studentService := studentmodule.NewService(studentRepository)
 	studentHandler := studentmodule.NewHandler(studentService)
+
+	dashboardRepository := dashboardmodule.NewRepository(db)
+	dashboardService := dashboardmodule.NewService(dashboardRepository)
+	dashboardHandler := dashboardmodule.NewHandler(dashboardService)
 
 	fileRepository := filemodule.NewRepository(db)
 	fileService := filemodule.NewService(fileRepository)
@@ -237,6 +242,13 @@ func NewRouter(db *pgxpool.Pool, jwtManager *platformjwt.Manager) http.Handler {
 			r.Use(middleware.RequireTenant)
 
 			studentmodule.RegisterRoutes(r, studentHandler)
+		})
+
+		r.Route("/dashboard", func(r chi.Router) {
+			r.Use(middleware.Auth(jwtManager))
+			r.Use(middleware.RequireTenant)
+
+			dashboardmodule.RegisterRoutes(r, dashboardHandler)
 		})
 
 		r.Route("/files", func(r chi.Router) {
